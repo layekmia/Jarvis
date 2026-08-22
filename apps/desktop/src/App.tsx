@@ -1,80 +1,129 @@
-import { useEffect } from 'react';
+/**
+ * App.tsx — Phase 1 Jarvis UI
+ *
+ * Layout (3-column, full-screen):
+ *   LEFT  : System Status + Active Memory
+ *   CENTER: Animated Brain + State Info
+ *   RIGHT : Conversation Panel
+ *   BOTTOM: Dev State Controls (Phase 1 only)
+ */
+import { useEffect, useCallback } from 'react';
 import { jarvisWS } from './lib/websocket';
 import { useJarvisStore } from './stores/jarvisStore';
-import './App.css';
+import { StatusBar } from './components/StatusBar';
+import { CenterBrainSection } from './components/CenterBrainSection';
+import { ConversationPanel } from './components/ConversationPanel';
+import { SystemStatusPanel } from './components/SystemStatusPanel';
+import { ActiveMemoryPanel } from './components/ActiveMemoryPanel';
+import { BrainStateControls } from './components/BrainStateControls';
+
+// Demo messages to simulate a conversation
+const DEMO_MESSAGES = [
+  { role: 'user' as const, text: 'Jarvis, আজকের আবহাওয়া কেমন?' },
+  { role: 'jarvis' as const, text: 'আজকের ঢাকার তাপমাত্রা ৩২°C। আংশিক মেঘলা আকাশ, সন্ধ্যায় বৃষ্টির সম্ভাবনা আছে।' },
+  { role: 'user' as const, text: 'Open Chrome and go to YouTube' },
+  { role: 'jarvis' as const, text: 'Opening Chrome and navigating to YouTube. Done!' },
+];
+
+let demoIndex = 0;
 
 function App() {
-  const { isConnected, statusText, brainState } = useJarvisStore();
+  const { setConnected, addMessage } = useJarvisStore();
 
+  // WebSocket connection management
   useEffect(() => {
-    // Connect to WebSocket on mount
     jarvisWS.connect();
 
-    // Listen to WS connection events to update Zustand state
     const unsubConnected = jarvisWS.on('_connected', () => {
-      useJarvisStore.getState().setConnected(true);
+      setConnected(true);
     });
 
-    const unsubDisconnected = jarvisWS.on('_disconnected', (msg: any) => {
-      useJarvisStore.getState().setConnected(false, `Code: ${msg.code}`);
+    const unsubDisconnected = jarvisWS.on('_disconnected', (msg: unknown) => {
+      const m = msg as { code?: number };
+      setConnected(false, `Code: ${m?.code ?? 'unknown'}`);
     });
 
-    const unsubError = jarvisWS.on('_error', (msg: any) => {
-      useJarvisStore.getState().setConnected(false, msg.error);
+    const unsubError = jarvisWS.on('_error', (msg: unknown) => {
+      const m = msg as { error?: string };
+      setConnected(false, m?.error ?? 'WebSocket error');
+    });
+
+    // Handle brain state changes from backend
+    const unsubBrainState = jarvisWS.on('brain_state', (data: unknown) => {
+      const d = data as { state?: string; status?: string };
+      if (d?.state) {
+        useJarvisStore.getState().setBrainState(
+          d.state as ReturnType<typeof useJarvisStore.getState>['brainState'],
+          d.status
+        );
+      }
+    });
+
+    // Handle conversation messages from backend
+    const unsubMessage = jarvisWS.on('message', (data: unknown) => {
+      const d = data as { role?: string; text?: string };
+      if (d?.role && d?.text) {
+        addMessage(d.role as 'user' | 'jarvis', d.text);
+      }
     });
 
     return () => {
-      // Cleanup subscriptions
       unsubConnected();
       unsubDisconnected();
       unsubError();
+      unsubBrainState();
+      unsubMessage();
       jarvisWS.disconnect();
     };
-  }, []);
+  }, [setConnected, addMessage]);
+
+  // Add demo messages for Phase 1 UI testing
+  const handleAddDemoMessage = useCallback(() => {
+    const msg = DEMO_MESSAGES[demoIndex % DEMO_MESSAGES.length];
+    addMessage(msg.role, msg.text);
+    demoIndex++;
+  }, [addMessage]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans">
-      <div className="text-center p-8 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-6 text-blue-400">JARVIS</h1>
-        
-        <div className="mb-8">
-          <div className="relative inline-block">
-            {/* Simple static brain placeholder for Phase 0 */}
-            <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500
-              ${isConnected ? 'bg-blue-900 shadow-[0_0_30px_rgba(59,130,246,0.5)]' : 'bg-red-900 shadow-[0_0_30px_rgba(239,68,68,0.3)]'}
-            `}>
-              <span className="text-4xl">🧠</span>
-            </div>
-            
-            {/* Status indicator dot */}
-            <div className={`absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-gray-800
-              ${isConnected ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-red-500'}
-            `} />
+    <div className="h-screen w-screen overflow-hidden grid-bg flex flex-col">
+      {/* Scanline overlay */}
+      <div className="scanline-overlay" />
+
+      {/* Top status bar */}
+      <StatusBar />
+
+      {/* Main 3-column layout */}
+      <div className="flex-1 grid grid-cols-[260px_1fr_280px] gap-4 p-4 min-h-0">
+
+        {/* LEFT COLUMN: System + Memory */}
+        <div className="flex flex-col gap-4 min-h-0">
+          <SystemStatusPanel />
+          <div className="flex-1 min-h-0">
+            <ActiveMemoryPanel />
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="p-3 bg-gray-900 rounded-lg">
-            <p className="text-sm text-gray-400 uppercase tracking-wider mb-1">Connection Status</p>
-            <p className={`font-mono text-sm ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-              {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
-            </p>
-          </div>
-          
-          <div className="p-3 bg-gray-900 rounded-lg">
-            <p className="text-sm text-gray-400 uppercase tracking-wider mb-1">System State</p>
-            <p className="font-mono text-sm text-blue-300">
-              {statusText}
-            </p>
-          </div>
-          
-          <div className="p-3 bg-gray-900 rounded-lg">
-            <p className="text-sm text-gray-400 uppercase tracking-wider mb-1">Brain State</p>
-            <p className="font-mono text-sm text-purple-300 capitalize">
-              {brainState}
-            </p>
+        {/* CENTER COLUMN: Brain */}
+        <div className="flex flex-col items-center justify-center gap-6">
+          <CenterBrainSection />
+
+          {/* Dev Controls — Phase 1 only */}
+          <div className="w-full max-w-xs">
+            <BrainStateControls onAddDemoMessage={handleAddDemoMessage} />
           </div>
         </div>
+
+        {/* RIGHT COLUMN: Conversation */}
+        <div className="min-h-0">
+          <ConversationPanel />
+        </div>
+
+      </div>
+
+      {/* Bottom status strip */}
+      <div className="px-6 py-1.5 border-t border-white/5 flex items-center justify-between">
+        <span className="text-[9px] text-slate-700 font-mono">JARVIS AI SYSTEM — PHASE 1 BUILD</span>
+        <span className="text-[9px] text-slate-700 font-mono">WS ws://127.0.0.1:8765</span>
       </div>
     </div>
   );

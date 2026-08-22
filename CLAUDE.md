@@ -3,35 +3,42 @@
 ## 📖 Overview
 JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell), React/TypeScript (frontend), and Python/FastAPI (backend). It features wake word activation, bilingual speech recognition (Bangla & English), voice responses, computer control (PyAutoGUI), browser automation (Playwright), and a dynamic AI brain UI (Three.js/React Three Fiber).
 
-## Current Phase: Phase 1: Voice & Basic STT/TTS
+## Current Phase: Phase 2 — Voice (Wake Word + STT + TTS)
 
 ## Progress Status
-- [x] **Phase 0: Foundation Setup**
-  - Project architecture established
-  - Python backend configured (FastAPI, WebSockets, dotenv, loguru)
-  - Python 3.13 virtual environment set up and verified
-  - Vite React frontend initialized (Tailwind v4, Zustand)
-  - `start_backend.bat` and `test_phase0.py` validated
-- [ ] **Phase 1: Voice & Basic STT/TTS**
-  - Implement system audio capture
-  - Setup real-time speech-to-text
-- [ ] Phase 2: Memory & Context
-- [ ] Phase 3: Action Execution
-- [ ] Phase 4: UI Polish & System Tray
-- ⬜ **Phase 8:** Agentic Multi-Step Tasks
-- ⬜ **Phase 9:** Vision (Visual Intelligence)
-- ⬜ **Phase 10:** Polish & Safety Hardening
+- [x] **Phase 0: Foundation Setup** ✅
+  - Python 3.13 virtual environment (26 packages installed)
+  - FastAPI + WebSocket backend running on port 8765
+  - Vite + React + TypeScript + Tailwind frontend
+  - OpenAI API key validation on startup
+  - test_phase0.py: ALL PASS
 
-## ⚙️ Current Status
-**Currently in:** Phase 1 (Active)
+- [x] **Phase 1: Jarvis UI** ✅
+  - 3D animated brain orb (Three.js / React Three Fiber)
+  - 5 animated brain states: Idle / Listening / Thinking / Executing / Speaking
+  - System Status Panel (CPU, RAM, Network, Uptime — live-simulated)
+  - Conversation Panel (User/Jarvis message bubbles, auto-scroll)
+  - Active Memory Panel (categorized memory entries)
+  - Status Bar (brain state badge, connection indicator)
+  - Dev Controls (manual state trigger buttons)
+  - Global design system (glass panels, glow effects, scan lines, grid bg)
+  - test_phase1.py: ALL PASS
 
-**What was done in Phase 0:**
-- Configured `.env` and `.gitignore`.
-- Initialized Python backend with FastAPI & WebSocket.
-- Set up OpenAI API key validation on backend startup.
-- Scaffolded Vite + React + TypeScript + Tailwind frontend.
-- Created global Zustand store for connection/brain states and WebSocket manager in the frontend.
-- Created `scripts/test_phase0.py` and `scripts/start_backend.bat` for manual verification.
+- [ ] **Phase 2: Voice (Wake Word + STT + TTS, বাংলা+English)**
+  - Custom wake word engine (openWakeWord or Picovoice Porcupine)
+  - Background mic listener for wake word
+  - Speech-to-text via OpenAI gpt-live-transcribe (bilingual: bn + en)
+  - Text-to-speech via OpenAI TTS (tts-1, onyx voice)
+  - Wake word → Listening state → STT → AI → TTS pipeline
+
+- [ ] Phase 3: AI Brain (Intent Understanding + Planning)
+- [ ] Phase 4: Basic Computer Control
+- [ ] Phase 5: File System Control
+- [ ] Phase 6: Browser Automation
+- [ ] Phase 7: Memory
+- [ ] Phase 8: Agentic Multi-Step Tasks
+- [ ] Phase 9: Vision
+- [ ] Phase 10: Polish & Safety Hardening
 
 ## 📂 Project Structure
 ```text
@@ -39,40 +46,76 @@ jarvis/
 ├── apps/
 │   └── desktop/
 │       ├── src/
-│       │   ├── components/       # UI components (brain, panels, cards)
-│       │   ├── features/         # voice, memory, conversation features
-│       │   ├── stores/           # zustand state
-│       │   └── lib/              # WebSocket manager
-│       └── src-tauri/            # Tauri 2 configuration
+│       │   ├── components/
+│       │   │   ├── JarvisBrain.tsx         ← 3D animated brain (Three.js)
+│       │   │   ├── CenterBrainSection.tsx  ← Brain + rotating rings
+│       │   │   ├── ConversationPanel.tsx   ← Chat UI
+│       │   │   ├── SystemStatusPanel.tsx   ← CPU/RAM/Network
+│       │   │   ├── ActiveMemoryPanel.tsx   ← Memory entries
+│       │   │   ├── StatusBar.tsx           ← Top header
+│       │   │   └── BrainStateControls.tsx  ← Dev controls
+│       │   ├── stores/
+│       │   │   └── jarvisStore.ts          ← Zustand global state
+│       │   ├── lib/
+│       │   │   └── websocket.ts            ← WS manager
+│       │   ├── App.tsx                     ← 3-column layout
+│       │   └── index.css                   ← Full design system
+│       └── package.json
 ├── backend/
-│   ├── api/                      # FastAPI routes + websocket (main.py)
-│   ├── core/                     # config, settings, env (config.py)
-│   ├── ai/                       # LLM routing
-│   ├── voice/                    # wake word, STT, TTS
-│   ├── memory/                   # SQLite models
-│   ├── planner/                  # intent → tool-call planning
-│   ├── vision/                   # screen understanding
-│   └── tools/                    # PyAutoGUI, Playwright, system controls
-├── shared/                       # shared types/schemas
-├── scripts/                      # test & startup scripts
-├── tests/
-├── .env
-└── CLAUDE.md
+│   ├── api/main.py                         ← FastAPI + WebSocket
+│   ├── core/config.py                      ← Settings (pydantic)
+│   ├── voice/                              ← Phase 2: STT/TTS/wake word
+│   └── requirements.txt
+├── scripts/
+│   ├── test_phase0.py                      ← Phase 0 sanity check
+│   ├── test_phase1.py                      ← Phase 1 sanity check
+│   └── start_backend.bat
+└── .env
 ```
 
 ## 🛠️ Tech Stack & Models
-- **Desktop Shell:** Tauri 2
-- **Frontend:** React + TypeScript + Vite + Tailwind CSS + Framer Motion + Zustand
-- **Backend:** Python 3 + FastAPI + WebSocket + Loguru
+- **Desktop Shell:** Tauri 2 (future)
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4 + Framer Motion + Three.js (React Three Fiber) + Zustand
+- **Backend:** Python 3.13 + FastAPI + WebSocket + Loguru
+- **3D:** @react-three/fiber + @react-three/drei + three.js
 - **Models Used:**
   - `gpt-5.6-luna` (Default Reasoning)
   - `gpt-5.6-terra` (Complex Reasoning)
-  - `gpt-live-transcribe` (Speech-to-Text)
-  - `tts-1` with `onyx` voice (Text-to-Speech)
+  - `gpt-live-transcribe` (Speech-to-Text — Phase 2)
+  - `tts-1` with `onyx` voice (Text-to-Speech — Phase 2)
 
-## 📌 Next Steps (For Next Session)
-1. **User verification:** The user needs to run `scripts\start_backend.bat`, followed by `backend\.venv\Scripts\python.exe scripts\test_phase0.py` to confirm the backend is solid. Then start the frontend using `cd apps\desktop` and `npm run dev`.
-2. **Phase 1 (Jarvis UI):** After Phase 0 is verified, move to Phase 1. Build the central "AI Brain" visual using Three.js/React Three Fiber with animated states (Idle / Listening / Thinking / Executing / Speaking). Implement System status panel, Conversation panel, and Active Memory panel using Tailwind CSS and Framer Motion. Connect the dummy states to the Zustand store.
+## 🚀 Running the App (Development)
+```bash
+# Terminal 1: Backend
+scripts\start_backend.bat
+
+# Terminal 2: Frontend
+cd apps\desktop
+npm run dev
+
+# Browser
+open http://localhost:5173
+```
+
+## 🧪 Test Commands
+```bash
+# Phase 0 test
+$env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase0.py
+
+# Phase 1 test (backend must be running + npm run dev)
+$env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
+```
+
+## 📌 Phase 2 Next Steps (Voice)
+1. Install `pyaudio` and `sounddevice` for mic access
+2. Install `openwakeword` for wake word detection
+3. Implement `backend/voice/wake_word.py` — background mic listener
+4. Implement `backend/voice/stt.py` — OpenAI gpt-live-transcribe integration
+5. Implement `backend/voice/tts.py` — OpenAI tts-1 + audio playback
+6. Wire the pipeline in backend: wake → listen → transcribe → AI → speak
+7. Update frontend: WS events from backend trigger brain state changes
+8. Wake phrase: user configurable in `.env` as `WAKE_WORD=jarvis`
 
 ## ⚠️ Known Issues / TODOs
-- Tauri CLI initialization requires correct MSVC build tools setup. The frontend currently operates as a standard Vite React app communicating with the backend over WebSocket. Tauri native initialization will be fully wrapped in subsequent phases as needed.
+- Tauri native shell not yet initialized (using browser dev mode)
+- `start_backend.bat` assumes Python 3.13 venv path — verify on other machines
