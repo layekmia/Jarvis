@@ -1,0 +1,53 @@
+# ===== SECRETS (NEVER COMMIT) =====
+.env
+*.key
+*.pem
+
+# ===== Python =====
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Node / Frontend =====
+node_modules/
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/.vite/
+
+# ===== Tauri / Rust =====
+apps/desktop/src-tauri/target/
+*.rs.bk
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== Database =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== Misc =====
+*.tmp
+*.temp
