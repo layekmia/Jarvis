@@ -5,7 +5,7 @@
  */
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useJarvisStore } from '../../stores/jarvisStore';
+import { useJarvisStore } from '../stores/jarvisStore';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

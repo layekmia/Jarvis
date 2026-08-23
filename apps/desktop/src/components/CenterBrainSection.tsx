@@ -3,7 +3,7 @@
  */
 import { motion, AnimatePresence } from 'framer-motion';
 import { JarvisBrain } from './JarvisBrain';
-import { useJarvisStore, type JarvisBrainState } from '../../stores/jarvisStore';
+import { useJarvisStore, type JarvisBrainState } from '../stores/jarvisStore.js';
 
 const STATE_MESSAGES: Record<JarvisBrainState, string> = {
   idle:      'Waiting for wake word...',

@@ -2,7 +2,7 @@
  * StatusBar — Top header with Jarvis name, brain state badge, and connection status.
  */
 import { motion, AnimatePresence } from 'framer-motion';
-import { useJarvisStore, type JarvisBrainState } from '../stores/jarvisStore.js';
+import { useJarvisStore, type JarvisBrainState } from '../stores/jarvisStore';
 
 const STATE_ICONS: Record<JarvisBrainState, string> = {
   idle: '◉',

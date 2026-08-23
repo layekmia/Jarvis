@@ -3,7 +3,7 @@
  * Used in Phase 1 to demo all UI states. Will be hidden/removed in production.
  */
 import { motion } from 'framer-motion';
-import { useJarvisStore, type JarvisBrainState } from '../../stores/jarvisStore';
+import { useJarvisStore, type JarvisBrainState } from '../stores/jarvisStore';
 
 const STATES: { state: JarvisBrainState; label: string; color: string }[] = [
   { state: 'idle',      label: 'IDLE',      color: 'border-cyan-500/40 text-cyan-400   hover:bg-cyan-500/10' },
