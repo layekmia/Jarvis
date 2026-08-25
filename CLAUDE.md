@@ -36,7 +36,10 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Voice pipeline syncs perfectly with React UI states (`Listening`, `Thinking`, `Speaking`) via WebSocket.
   - **Modification**: As per user request, Phase 2 bypasses AI reasoning and translation, directly echoing STT transcripts to TTS.
 
-- [ ] **Phase 3: AI Brain (Intent Understanding + Planning)**
+- [x] **Phase 3: AI Brain (Intent Understanding + Planning)** ✅
+  - Integrated `AIBrain` for intent routing (Luna default, Terra fallback).
+  - Defined tool schemas (`open_app`, `close_app`, `set_volume`, `search_file`).
+  - Added SQLite-backed `RateLimitGuard` (500 limit).
 - [ ] Phase 4: Basic Computer Control
 - [ ] Phase 5: File System Control
 - [ ] Phase 6: Browser Automation
@@ -115,13 +118,12 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 3 Next Steps (AI Brain)
+## 📌 Phase 4 Next Steps (Basic Computer Control)
 
-1. Initialize OpenAI `gpt-5.6-luna` for reasoning and planning (Basic setup done, tool planning next).
-2. Define intent and function/tool calling schema for Jarvis.
-3. Replace the simple English-only chat in `backend/api/main.py` with full multi-step tool calls.
-4. Add token limit / cost guard logic in the backend.
-5. Create fallback/offline response handling if OpenAI API is down.
+1. Implement PyAutoGUI actions in `backend/tools/system/` and `backend/tools/apps/`.
+2. Connect `AIBrain` intent tool calls to actual function executions.
+3. Handle Windows-specific requirements like `pycaw` for volume and `screen-brightness-control` for brightness.
+4. Provide TTS feedback upon successful completion of computer commands.
 
 ## ⚠️ Known Issues / TODOs
 

@@ -23,6 +23,8 @@ from backend.voice.wake_word import WakeWordEngine
 from backend.voice.stt import SpeechToTextEngine
 from backend.voice.tts import TextToSpeechEngine
 from backend.voice.audio_player import AudioPlayer
+from backend.memory.guard import RateLimitGuard, RateLimitExceeded
+from backend.ai.planner import AIBrain
 
 # ── App setup ────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -234,6 +236,8 @@ async def voice_loop() -> None:
     stt_engine = SpeechToTextEngine(api_key=settings.openai_api_key)
     tts_engine = TextToSpeechEngine(api_key=settings.openai_api_key)
     player = AudioPlayer()
+    brain = AIBrain()
+    guard = RateLimitGuard(daily_limit=settings.daily_request_limit)
     
     while True:
         try:
@@ -259,12 +263,18 @@ async def voice_loop() -> None:
             # Send transcribed text to UI
             await broadcast_event("message", {"text": text, "role": "user"})
             
-            # 3. AI Brain (Simple Phase 2 Chat)
-            # As requested, skip AI reasoning and translation. 
-            # Simply repeat exactly what the user said.
+            # 3. AI Brain (Phase 3 Intent Understanding + Planning)
             await broadcast_event("brain_state", {"state": "thinking"})
             
-            response_text = text
+            try:
+                guard.check_limit()
+                response_text = await brain.process_intent(text)
+                guard.log_usage(tokens=1)
+            except RateLimitExceeded:
+                response_text = "আজকের জন্য আমার লিমিট শেষ হয়ে গেছে। কালকে আবার চেষ্টা করো।"
+            except Exception as brain_err:
+                logger.error(f"Brain processing failed: {brain_err}")
+                response_text = "আমি এখন ইন্টারনেটের সাথে যুক্ত নই অথবা আমার এআই সার্ভারে সমস্যা হচ্ছে।"
             
             # 4. Generate TTS and Play
             await broadcast_event("brain_state", {"state": "speaking"})
