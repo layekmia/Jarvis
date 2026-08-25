@@ -287,7 +287,12 @@ async def voice_loop() -> None:
                 
                 try:
                     guard.check_limit()
-                    response_text = await brain.process_intent(text)
+                    response_text = await brain.process_intent(
+                    text, 
+                    tts_engine=tts_engine, 
+                    player=player, 
+                    broadcast_callback=broadcast_event
+                )
                     guard.log_usage(tokens=1)
                 except RateLimitExceeded:
                     response_text = "I've reached my daily usage limit. Please try again tomorrow."

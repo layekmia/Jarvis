@@ -12,7 +12,7 @@ class SpeechToTextEngine:
         # Adjust these values based on environment noise
         self.recognizer.energy_threshold = 300  
         self.recognizer.dynamic_energy_threshold = True
-        self.recognizer.pause_threshold = 2.5  # Increased to 2.5s to prevent early cutoff while speaking
+        self.recognizer.pause_threshold = 1.8  # Reduced to 1.8s (sweet spot between cutoff and delay)
         
     async def listen_and_transcribe(self) -> str:
         """

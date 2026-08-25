@@ -36,7 +36,7 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Voice pipeline syncs perfectly with React UI states (`Listening`, `Thinking`, `Speaking`) via WebSocket.
   - **Modification**: As per user request, Phase 2 bypasses AI reasoning and translation, directly echoing STT transcripts to TTS.
   - **Update**: STT language lock (`language="bn"`) removed — now handles Bangladeshi accent, Bangla, Banglish, and mixed-language input via prompt-guided `gpt-4o-transcribe`.
-  - **Update**: Cinematic wake greeting added — when "Hey Jarvis" is detected, Jarvis instantly says *"Yes, sir. I'm online and ready. How can I assist you today?"* before listening.
+  - **Update**: Cinematic wake greeting added — when "Hey Jarvis" is detected, Jarvis instantly says _"Yes, sir. I'm online and ready. How can I assist you today?"_ before listening.
 
 - [x] **Phase 3: AI Brain (Intent Understanding + Planning)** ✅
   - Integrated `AIBrain` for intent routing (Luna default, Terra fallback).
@@ -45,7 +45,13 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - **Update**: Jarvis always responds in English regardless of input language (English, Bangla, Banglish, or mixed). System prompt enforces English-only output.
   - **Update**: Active listening loop added. After waking up, Jarvis stays awake and keeps listening for consecutive commands until the user says "sleep" or "goodbye" or stays silent.
   - **Update**: STT `pause_threshold` increased to 2.5s to prevent cutting off the user mid-sentence if they pause while speaking.
-- [ ] Phase 4: Basic Computer Control
+- [x] **Phase 4: Basic Computer Control** ✅
+  - Installed Windows dependencies: `pyautogui`, `pycaw`, `screen-brightness-control`, `psutil`, `pygetwindow`, `comtypes`.
+  - Created `backend/tools/system.py` (volume, brightness, system info).
+  - Created `backend/tools/apps.py` (open, close, switch apps on Windows).
+  - Created `backend/tools/interaction.py` (type text, click, screenshot).
+  - Added **Tool Dispatcher & Real-Time Narration** in `backend/ai/planner.py`. Jarvis now narrates step-by-step actions (e.g., "Opening notepad...", "Done, sir") while executing tools.
+  - Handled silent/soft notifications for actions like closing apps ("বন্ধ করছি...").
 - [ ] Phase 5: File System Control
 - [ ] Phase 6: Browser Automation
 - [ ] Phase 7: Memory
