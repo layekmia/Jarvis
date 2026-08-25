@@ -36,12 +36,18 @@ class SpeechToTextEngine:
             audio_file.name = "audio.wav"
             
             # Call OpenAI Transcription API
-            # gpt-4o-transcribe has much better Bengali accuracy than whisper-1
+            # gpt-4o-transcribe: no language lock so it handles Bangladeshi accent,
+            # Bangla, Banglish (Bengali in English letters), and mixed-language speech.
+            # The prompt guides the model about the speaker's context.
             response = await self.client.audio.transcriptions.create(
                 model="gpt-4o-transcribe", 
                 file=audio_file,
-                language="bn",  # Bengali — supported by gpt-4o-transcribe
-                prompt="The speaker is talking in Bengali (Bangla). Transcribe accurately in Bengali script.",
+                prompt=(
+                    "The speaker is Bangladeshi and may speak in English with a Bangladeshi accent, "
+                    "in Bengali (Bangla), in Banglish (Bengali words written in English letters), "
+                    "or a mix of all of these. Transcribe exactly what is said, preserving the "
+                    "original words and language as spoken."
+                ),
             )
             
             transcription = response.text.strip()

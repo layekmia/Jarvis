@@ -7,9 +7,10 @@
 ## 🎯 Core Requirements (সব Phase-এ মাথায় রাখতে হবে)
 
 1. **Wake Word** — একটা hidden/custom activation phrase বলে Jarvis-কে জাগানো যাবে (default word তুমি নিজে সেট করবে, কারো জানার দরকার নাই)
-2. **Bilingual (বাংলা + English)** — তুমি বাংলায় বলো বা ইংরেজিতে বলো, দুটোই বুঝবে এবং বুঝে সেই ভাষাতেই বা তোমার পছন্দমতো ভাষায় উত্তর দেবে
-3. **Original/Custom Voice** — Jarvis-এর নিজস্ব একটা voice থাকবে (generic robotic voice না)
-4. **Confirmation for risky actions** — delete/shutdown/install ইত্যাদির আগে অনুমতি নেবে
+2. **Accent-aware STT (Input: যেকোনো ভাষা → Output: সবসময় English)** — তুমি বাংলায়, ইংরেজিতে, Banglish-এ বা মিক্স করে যাই বলো — Jarvis সব বুঝবে এবং সবসময় English-এ উত্তর দেবে। STT-এ কোনো language lock নেই, Bangladeshi accent সাপোর্ট করে।
+3. **Wake Greeting** — "Hey Jarvis" বলার সাথে সাথে Jarvis একটা short cinematic sentence বলবে: *"At your service. What can I do for you?"*
+4. **Original/Custom Voice** — Jarvis-এর নিজস্ব একটা voice থাকবে (generic robotic voice না)
+5. **Confirmation for risky actions** — delete/shutdown/install ইত্যাদির আগে অনুমতি নেবে
 
 ---
 

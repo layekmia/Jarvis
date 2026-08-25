@@ -250,6 +250,15 @@ async def voice_loop() -> None:
                 
             # Wake word detected! Update UI
             logger.info("Wake word detected. Switching UI to Listening...")
+            
+            # 2a. Play cinematic wake greeting (Speaking state briefly)
+            await broadcast_event("brain_state", {"state": "speaking"})
+            greeting = "At your service. What can I do for you?"
+            greeting_audio = await tts_engine.generate_speech(greeting)
+            await player.play_audio_async(greeting_audio)
+            logger.info(f"Played wake greeting: '{greeting}'")
+            
+            # 2b. Now switch to Listening and record command
             await broadcast_event("brain_state", {"state": "listening"})
             
             # 2. Record and perform STT
@@ -271,10 +280,10 @@ async def voice_loop() -> None:
                 response_text = await brain.process_intent(text)
                 guard.log_usage(tokens=1)
             except RateLimitExceeded:
-                response_text = "আজকের জন্য আমার লিমিট শেষ হয়ে গেছে। কালকে আবার চেষ্টা করো।"
+                response_text = "I've reached my daily usage limit. Please try again tomorrow."
             except Exception as brain_err:
                 logger.error(f"Brain processing failed: {brain_err}")
-                response_text = "আমি এখন ইন্টারনেটের সাথে যুক্ত নই অথবা আমার এআই সার্ভারে সমস্যা হচ্ছে।"
+                response_text = "I'm having trouble reaching my AI server right now. Please try again shortly."
             
             # 4. Generate TTS and Play
             await broadcast_event("brain_state", {"state": "speaking"})

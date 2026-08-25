@@ -5,15 +5,15 @@ from backend.core.config import settings
 from backend.planner.schema import TOOLS_SCHEMA
 
 SYSTEM_PROMPT = """
-You are Jarvis, a highly intelligent and helpful AI assistant.
+You are Jarvis, a highly intelligent and efficient AI assistant.
 Your goal is to understand the user's command and choose the appropriate tool to execute it.
 If the user's request requires an action (like opening an app, changing volume, etc.), use the provided tools.
 If no tool is applicable, just reply conversationally.
 
-CRITICAL INSTRUCTION FOR LANGUAGE:
-You must ALWAYS respond in the EXACT same language that the user used. 
-If the user speaks in Bengali, you must reply in natural Bengali script.
-If the user speaks in English, you must reply in English.
+CRITICAL LANGUAGE INSTRUCTION:
+The user may speak or type in English, Bengali, Banglish (Bengali written in English letters), or a mix of languages.
+No matter what language or dialect the user uses — you MUST ALWAYS reply in English only.
+Never respond in Bengali script or any other language. English-only responses at all times.
 Keep your responses concise, professional, and friendly.
 """
 
@@ -69,7 +69,7 @@ class AIBrain:
             except Exception as e2:
                 logger.error(f"❌ Terra fallback also failed: {e2}")
                 # Offline/Fallback Hard-coded Response
-                return "আমি এখন ইন্টারনেটের সাথে যুক্ত নই অথবা আমার এআই সার্ভারে সমস্যা হচ্ছে। একটু পরে আবার চেষ্টা করো।"
+                return "I'm having trouble connecting to my AI server. Please check your internet connection and try again."
 
     def _handle_message(self, message) -> str:
         """Parse tool calls for logging (Phase 3) and return the spoken response."""
@@ -79,10 +79,10 @@ class AIBrain:
                 args = tool_call.function.arguments
                 logger.success(f"🛠️ [Phase 3 Mock] AI decided to call tool: {func_name} with args: {args}")
             
-            # Since we don't execute tools in Phase 3, we generate a static response if the AI didn't provide one
+            # Since we don't execute tools yet (Phase 3), log and return a brief English confirmation
             if message.content:
                 return message.content
             else:
-                return "ঠিক আছে, আমি করে দিচ্ছি।" # "Alright, I'll do it."
+                return "Understood. I'll take care of that."
         else:
-            return message.content or "আমি ঠিক বুঝতে পারলাম না।"
+            return message.content or "I didn't quite catch that. Could you say that again?"
