@@ -253,44 +253,56 @@ async def voice_loop() -> None:
             
             # 2a. Play cinematic wake greeting (Speaking state briefly)
             await broadcast_event("brain_state", {"state": "speaking"})
-            greeting = "At your service. What can I do for you?"
+            greeting = "Yes, sir. I'm online and ready. How can I assist you today?"
             greeting_audio = await tts_engine.generate_speech(greeting)
             await player.play_audio_async(greeting_audio)
             logger.info(f"Played wake greeting: '{greeting}'")
             
-            # 2b. Now switch to Listening and record command
-            await broadcast_event("brain_state", {"state": "listening"})
-            
-            # 2. Record and perform STT
-            text = await stt_engine.listen_and_transcribe()
-            
-            if not text:
-                logger.info("No speech detected after wake word.")
-                await broadcast_event("brain_state", {"state": "idle"})
-                continue
+            # Active listening loop: Keep listening until user says to stop
+            while True:
+                # 2b. Now switch to Listening and record command
+                await broadcast_event("brain_state", {"state": "listening"})
                 
-            # Send transcribed text to UI
-            await broadcast_event("message", {"text": text, "role": "user"})
-            
-            # 3. AI Brain (Phase 3 Intent Understanding + Planning)
-            await broadcast_event("brain_state", {"state": "thinking"})
-            
-            try:
-                guard.check_limit()
-                response_text = await brain.process_intent(text)
-                guard.log_usage(tokens=1)
-            except RateLimitExceeded:
-                response_text = "I've reached my daily usage limit. Please try again tomorrow."
-            except Exception as brain_err:
-                logger.error(f"Brain processing failed: {brain_err}")
-                response_text = "I'm having trouble reaching my AI server right now. Please try again shortly."
-            
-            # 4. Generate TTS and Play
-            await broadcast_event("brain_state", {"state": "speaking"})
-            await broadcast_event("message", {"text": response_text, "role": "jarvis"})
-            
-            audio_bytes = await tts_engine.generate_speech(response_text)
-            await player.play_audio_async(audio_bytes)
+                # 2. Record and perform STT
+                text = await stt_engine.listen_and_transcribe()
+                
+                if not text:
+                    logger.info("No speech detected. Going back to sleep mode.")
+                    await broadcast_event("brain_state", {"state": "idle"})
+                    break
+                
+                # Check for sleep commands
+                text_lower = text.lower()
+                sleep_phrases = ["sleep", "stop listening", "goodbye", "bye", "go to sleep"]
+                if any(phrase in text_lower for phrase in sleep_phrases):
+                    logger.info("Sleep command received. Going back to sleep mode.")
+                    await broadcast_event("brain_state", {"state": "idle"})
+                    break
+                    
+                # Send transcribed text to UI
+                await broadcast_event("message", {"text": text, "role": "user"})
+                
+                # 3. AI Brain (Phase 3 Intent Understanding + Planning)
+                await broadcast_event("brain_state", {"state": "thinking"})
+                
+                try:
+                    guard.check_limit()
+                    response_text = await brain.process_intent(text)
+                    guard.log_usage(tokens=1)
+                except RateLimitExceeded:
+                    response_text = "I've reached my daily usage limit. Please try again tomorrow."
+                except Exception as brain_err:
+                    logger.error(f"Brain processing failed: {brain_err}")
+                    response_text = "I'm having trouble reaching my AI server right now. Please try again shortly."
+                
+                # 4. Generate TTS and Play
+                await broadcast_event("brain_state", {"state": "speaking"})
+                await broadcast_event("message", {"text": response_text, "role": "jarvis"})
+                
+                audio_bytes = await tts_engine.generate_speech(response_text)
+                await player.play_audio_async(audio_bytes)
+                
+                # Loop repeats: automatically goes back to listening state
             
         except Exception as e:
             logger.error(f"Error in voice loop: {e}")

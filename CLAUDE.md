@@ -36,13 +36,15 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Voice pipeline syncs perfectly with React UI states (`Listening`, `Thinking`, `Speaking`) via WebSocket.
   - **Modification**: As per user request, Phase 2 bypasses AI reasoning and translation, directly echoing STT transcripts to TTS.
   - **Update**: STT language lock (`language="bn"`) removed — now handles Bangladeshi accent, Bangla, Banglish, and mixed-language input via prompt-guided `gpt-4o-transcribe`.
-  - **Update**: Cinematic wake greeting added — when "Hey Jarvis" is detected, Jarvis says *"At your service. What can I do for you?"* before listening.
+  - **Update**: Cinematic wake greeting added — when "Hey Jarvis" is detected, Jarvis instantly says *"Yes, sir. I'm online and ready. How can I assist you today?"* before listening.
 
 - [x] **Phase 3: AI Brain (Intent Understanding + Planning)** ✅
   - Integrated `AIBrain` for intent routing (Luna default, Terra fallback).
   - Defined tool schemas (`open_app`, `close_app`, `set_volume`, `search_file`).
   - Added SQLite-backed `RateLimitGuard` (500 limit).
   - **Update**: Jarvis always responds in English regardless of input language (English, Bangla, Banglish, or mixed). System prompt enforces English-only output.
+  - **Update**: Active listening loop added. After waking up, Jarvis stays awake and keeps listening for consecutive commands until the user says "sleep" or "goodbye" or stays silent.
+  - **Update**: STT `pause_threshold` increased to 2.5s to prevent cutting off the user mid-sentence if they pause while speaking.
 - [ ] Phase 4: Basic Computer Control
 - [ ] Phase 5: File System Control
 - [ ] Phase 6: Browser Automation
