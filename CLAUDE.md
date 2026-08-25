@@ -1,11 +1,13 @@
 # 🤖 JARVIS Project Status
 
 ## 📖 Overview
+
 JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell), React/TypeScript (frontend), and Python/FastAPI (backend). It features wake word activation, bilingual speech recognition (Bangla & English), voice responses, computer control (PyAutoGUI), browser automation (Playwright), and a dynamic AI brain UI (Three.js/React Three Fiber).
 
-## Current Phase: Phase 2 — Voice (Wake Word + STT + TTS)
+## Current Phase: Phase 3 — AI Brain (Intent Understanding + Planning)
 
 ## Progress Status
+
 - [x] **Phase 0: Foundation Setup** ✅
   - Python 3.13 virtual environment (26 packages installed)
   - FastAPI + WebSocket backend running on port 8765
@@ -24,14 +26,17 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Global design system (glass panels, glow effects, scan lines, grid bg)
   - test_phase1.py: ALL PASS
 
-- [ ] **Phase 2: Voice (Wake Word + STT + TTS, বাংলা+English)**
-  - Custom wake word engine (openWakeWord or Picovoice Porcupine)
-  - Background mic listener for wake word
-  - Speech-to-text via OpenAI gpt-live-transcribe (bilingual: bn + en)
-  - Text-to-speech via OpenAI TTS (tts-1, onyx voice)
-  - Wake word → Listening state → STT → AI → TTS pipeline
+- [x] **Phase 2: Voice (Wake Word + STT + TTS, বাংলা+English)** ✅
+  - Custom wake word engine (`openWakeWord` forced to `onnxruntime` due to Windows/Py3.13 tflite issues)
+  - Background mic listener for "Hey Jarvis" (`backend/voice/wake_word.py`) — threshold tuned to 0.25 for Bangladeshi accent
+  - Speech-to-text via OpenAI `gpt-4o-transcribe` (better Bengali accuracy than Whisper) (`backend/voice/stt.py`)
+  - Text-to-speech via ElevenLabs Premium TTS (Voice: Charlie) (`backend/voice/tts.py`)
+  - Audio playback using `pyaudio` and `miniaudio` (pure Python MP3 decode without ffmpeg) (`backend/voice/audio_player.py`)
+  - Wake word → Listening state → STT → TTS pipeline running seamlessly in `backend/api/main.py`
+  - Voice pipeline syncs perfectly with React UI states (`Listening`, `Thinking`, `Speaking`) via WebSocket.
+  - **Modification**: As per user request, Phase 2 bypasses AI reasoning and translation, directly echoing STT transcripts to TTS.
 
-- [ ] Phase 3: AI Brain (Intent Understanding + Planning)
+- [ ] **Phase 3: AI Brain (Intent Understanding + Planning)**
 - [ ] Phase 4: Basic Computer Control
 - [ ] Phase 5: File System Control
 - [ ] Phase 6: Browser Automation
@@ -41,6 +46,7 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
 - [ ] Phase 10: Polish & Safety Hardening
 
 ## 📂 Project Structure
+
 ```text
 jarvis/
 ├── apps/
@@ -74,6 +80,7 @@ jarvis/
 ```
 
 ## 🛠️ Tech Stack & Models
+
 - **Desktop Shell:** Tauri 2 (future)
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4 + Framer Motion + Three.js (React Three Fiber) + Zustand
 - **Backend:** Python 3.13 + FastAPI + WebSocket + Loguru
@@ -82,9 +89,10 @@ jarvis/
   - `gpt-5.6-luna` (Default Reasoning)
   - `gpt-5.6-terra` (Complex Reasoning)
   - `gpt-live-transcribe` (Speech-to-Text — Phase 2)
-  - `tts-1` with `onyx` voice (Text-to-Speech — Phase 2)
+  - `eleven_multilingual_v2` with `Charlie` voice (Text-to-Speech — Phase 2)
 
 ## 🚀 Running the App (Development)
+
 ```bash
 # Terminal 1: Backend
 scripts\start_backend.bat
@@ -98,6 +106,7 @@ open http://localhost:5173
 ```
 
 ## 🧪 Test Commands
+
 ```bash
 # Phase 0 test
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase0.py
@@ -106,16 +115,15 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 2 Next Steps (Voice)
-1. Install `pyaudio` and `sounddevice` for mic access
-2. Install `openwakeword` for wake word detection
-3. Implement `backend/voice/wake_word.py` — background mic listener
-4. Implement `backend/voice/stt.py` — OpenAI gpt-live-transcribe integration
-5. Implement `backend/voice/tts.py` — OpenAI tts-1 + audio playback
-6. Wire the pipeline in backend: wake → listen → transcribe → AI → speak
-7. Update frontend: WS events from backend trigger brain state changes
-8. Wake phrase: user configurable in `.env` as `WAKE_WORD=jarvis`
+## 📌 Phase 3 Next Steps (AI Brain)
+
+1. Initialize OpenAI `gpt-5.6-luna` for reasoning and planning (Basic setup done, tool planning next).
+2. Define intent and function/tool calling schema for Jarvis.
+3. Replace the simple English-only chat in `backend/api/main.py` with full multi-step tool calls.
+4. Add token limit / cost guard logic in the backend.
+5. Create fallback/offline response handling if OpenAI API is down.
 
 ## ⚠️ Known Issues / TODOs
+
 - Tauri native shell not yet initialized (using browser dev mode)
 - `start_backend.bat` assumes Python 3.13 venv path — verify on other machines

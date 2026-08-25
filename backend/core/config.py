@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         description="OpenAI API base URL"
     )
 
+    # === ElevenLabs ===
+    elevenlabs_api_key: str = Field(..., description="ElevenLabs API key")
+    elevenlabs_voice_id: str = Field(..., description="ElevenLabs Voice ID")
+
     # === Model IDs (as defined in roadmap) ===
     model_reasoning_default: str = Field(
         default="gpt-5.6-luna",

@@ -8,3 +8,13 @@ pydantic-settings==2.6.0
 httpx==0.27.2
 aiofiles==24.1.0
 loguru==0.7.2
+
+# Phase 2 - Voice Dependencies
+openwakeword>=0.6.0
+pyaudio>=0.2.14
+SpeechRecognition>=3.10.1
+sounddevice>=0.4.6
+numpy>=1.24.0
+edge-tts>=7.0.0       # Free Microsoft TTS — native Bengali voice
+miniaudio>=1.0        # Pure-Python MP3 decode (no ffmpeg needed)
+elevenlabs>=1.46.0    # Premium TTS

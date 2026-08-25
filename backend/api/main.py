@@ -19,6 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from backend.core.config import settings
+from backend.voice.wake_word import WakeWordEngine
+from backend.voice.stt import SpeechToTextEngine
+from backend.voice.tts import TextToSpeechEngine
+from backend.voice.audio_player import AudioPlayer
 
 # ── App setup ────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -45,6 +49,10 @@ async def startup_event() -> None:
     """Runs on server start. Validates OpenAI API key."""
     logger.info("🚀 Jarvis backend starting...")
     await validate_openai_key()
+    
+    # Start voice engine loop in the background
+    asyncio.create_task(voice_loop())
+    
     logger.info("✅ Jarvis backend ready!")
 
 
@@ -199,6 +207,76 @@ async def send_event(
     })
     await websocket.send_text(message)
     logger.debug(f"📤 Sent event '{event_type}'")
+
+
+async def broadcast_event(event_type: str, payload: dict[str, Any]) -> None:
+    """Broadcasts an event to all connected WebSocket clients."""
+    if not connected_clients:
+        return
+    message = json.dumps({
+        "type": event_type,
+        "payload": payload,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+    for client in connected_clients:
+        try:
+            await client.send_text(message)
+        except Exception:
+            pass
+
+
+async def voice_loop() -> None:
+    """Background loop that handles wake word detection and voice interaction."""
+    logger.info("Starting background voice loop...")
+    
+    # Initialize engines
+    wake_engine = WakeWordEngine(wake_word="hey_jarvis")
+    stt_engine = SpeechToTextEngine(api_key=settings.openai_api_key)
+    tts_engine = TextToSpeechEngine(api_key=settings.openai_api_key)
+    player = AudioPlayer()
+    
+    while True:
+        try:
+            # 1. Listen for wake word
+            await broadcast_event("brain_state", {"state": "idle"})
+            detected = await wake_engine.listen_for_wake_word()
+            
+            if not detected:
+                continue
+                
+            # Wake word detected! Update UI
+            logger.info("Wake word detected. Switching UI to Listening...")
+            await broadcast_event("brain_state", {"state": "listening"})
+            
+            # 2. Record and perform STT
+            text = await stt_engine.listen_and_transcribe()
+            
+            if not text:
+                logger.info("No speech detected after wake word.")
+                await broadcast_event("brain_state", {"state": "idle"})
+                continue
+                
+            # Send transcribed text to UI
+            await broadcast_event("message", {"text": text, "role": "user"})
+            
+            # 3. AI Brain (Simple Phase 2 Chat)
+            # As requested, skip AI reasoning and translation. 
+            # Simply repeat exactly what the user said.
+            await broadcast_event("brain_state", {"state": "thinking"})
+            
+            response_text = text
+            
+            # 4. Generate TTS and Play
+            await broadcast_event("brain_state", {"state": "speaking"})
+            await broadcast_event("message", {"text": response_text, "role": "jarvis"})
+            
+            audio_bytes = await tts_engine.generate_speech(response_text)
+            await player.play_audio_async(audio_bytes)
+            
+        except Exception as e:
+            logger.error(f"Error in voice loop: {e}")
+            await asyncio.sleep(2)
+
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
