@@ -8,8 +8,16 @@ Startup checklist:
   4. Sends 'connected' event to frontend on WebSocket connect
 """
 
-import json
+import sys
 import asyncio
+
+# ── Windows: must set ProactorEventLoop BEFORE anything else imports asyncio ──
+# Playwright requires ProactorEventLoop to spawn browser subprocesses on Windows.
+# Without this, Playwright raises NotImplementedError at transport.connect().
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+import json
 from datetime import datetime
 from typing import Any
 

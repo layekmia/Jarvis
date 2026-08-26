@@ -78,6 +78,7 @@ def _format_size(size_bytes: int) -> str:
 def search_file(
     query: str,
     search_in: Optional[str] = None,
+    location: Optional[str] = None,   # alias for search_in (LLM sometimes uses this name)
     max_results: int = 10,
 ) -> str:
     """
@@ -92,7 +93,9 @@ def search_file(
     Returns:
         Human-readable string listing matching paths, or an error message.
     """
-    base = Path(search_in) if search_in else Path.home()
+    # Accept 'location' as an alias for 'search_in' (LLM sometimes passes 'location')
+    effective_search_in = search_in or location
+    base = Path(effective_search_in) if effective_search_in else Path.home()
 
     if not base.exists() or not base.is_dir():
         logger.warning(f"search_file: path not found or not a dir: {base}")
