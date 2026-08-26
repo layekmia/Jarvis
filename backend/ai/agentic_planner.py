@@ -46,6 +46,8 @@ RISKY_TOOLS: frozenset[str] = frozenset({
     "rename_file",
     "rename_file_confirmed",
     "close_app",
+    "shutdown_system",
+    "restart_system",
 })
 
 # System prompt for the step-planning LLM call
@@ -58,11 +60,12 @@ Each step object must have:
 - "args": an object with the tool's arguments
 
 Available tools: open_app, close_app, switch_app, set_volume, set_brightness,
-get_system_info, type_text, mouse_click, take_screenshot,
+get_system_info, type_text, mouse_click, take_screenshot, shutdown_system, restart_system,
 search_file, create_file, read_file_summary, copy_file, move_file,
 rename_file, delete_file, list_directory,
-open_url, search_web, youtube_search, fill_form, switch_tab, close_browser,
-remember, forget
+open_url, search_web, youtube_search, youtube_play, youtube_open,
+fill_form, switch_tab, close_browser,
+remember, forget, describe_screen, click_element_on_screen
 
 Example output:
 [

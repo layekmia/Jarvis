@@ -17,6 +17,11 @@ import { SystemStatusPanel } from './components/SystemStatusPanel';
 import { ActiveMemoryPanel } from './components/ActiveMemoryPanel';
 import { BrainStateControls } from './components/BrainStateControls';
 import { TaskProgressPanel } from './components/TaskProgressPanel';
+import { VisionPanel } from './components/VisionPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { LogsPanel } from './components/LogsPanel';
+import { Settings, Activity } from 'lucide-react';
+import { useState } from 'react';
 
 // Demo messages to simulate a conversation
 const DEMO_MESSAGES = [
@@ -29,7 +34,9 @@ const DEMO_MESSAGES = [
 let demoIndex = 0;
 
 function App() {
-  const { setConnected, addMessage, setMemoryEntries, setTaskProgress } = useJarvisStore();
+  const { setConnected, addMessage, setMemoryEntries, setTaskProgress, setVisionData } = useJarvisStore();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
 
   // WebSocket connection management
   useEffect(() => {
@@ -90,6 +97,26 @@ function App() {
       }
     });
 
+    // Handle Phase 9 Vision events
+    const unsubVisionCapture = jarvisWS.on('vision_capture', (data: unknown) => {
+      const d = data as { image_base64: string; action: string; details: string };
+      if (d?.image_base64) {
+        setVisionData({
+          image_base64: d.image_base64,
+          action: d.action,
+          details: d.details,
+          result: undefined, // Clear previous result
+        });
+      }
+    });
+
+    const unsubVisionResult = jarvisWS.on('vision_result', (data: unknown) => {
+      const d = data as { result: string };
+      if (d?.result) {
+        setVisionData({ result: d.result });
+      }
+    });
+
     return () => {
       unsubConnected();
       unsubDisconnected();
@@ -98,9 +125,11 @@ function App() {
       unsubMessage();
       unsubMemory();
       unsubTaskProgress();
+      unsubVisionCapture();
+      unsubVisionResult();
       jarvisWS.disconnect();
     };
-  }, [setConnected, addMessage, setMemoryEntries, setTaskProgress]);
+  }, [setConnected, addMessage, setMemoryEntries, setTaskProgress, setVisionData]);
 
   // Add demo messages for Phase 1 UI testing
   const handleAddDemoMessage = useCallback(() => {
@@ -118,11 +147,12 @@ function App() {
       <StatusBar />
 
       {/* Main 3-column layout */}
-      <div className="flex-1 grid grid-cols-[260px_1fr_280px] gap-4 p-4 min-h-0">
+      <div className="flex-1 grid grid-cols-[400px_1fr_500px] gap-6 p-6 min-h-0">
 
         {/* LEFT COLUMN: System + Memory */}
         <div className="flex flex-col gap-4 min-h-0">
           <SystemStatusPanel />
+          <VisionPanel />
           <div className="flex-1 min-h-0">
             <ActiveMemoryPanel />
           </div>
@@ -151,10 +181,31 @@ function App() {
       </div>
 
       {/* Bottom status strip */}
-      <div className="px-6 py-1.5 border-t border-white/5 flex items-center justify-between">
-        <span className="text-[9px] text-slate-700 font-mono">JARVIS AI SYSTEM — PHASE 1 BUILD</span>
-        <span className="text-[9px] text-slate-700 font-mono">WS ws://127.0.0.1:8765</span>
+      <div className="px-6 py-2 border-t border-white/5 flex items-center justify-between relative z-10">
+        <span className="text-[9px] text-slate-700 font-mono">JARVIS AI SYSTEM — v1.0</span>
+        
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={() => setIsLogsOpen(true)}
+            className="flex items-center space-x-1.5 text-[10px] text-white/30 hover:text-cyan-400 transition-colors uppercase tracking-wider font-mono"
+          >
+            <Activity className="w-3 h-3" />
+            <span>Logs</span>
+          </button>
+          
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center space-x-1.5 text-[10px] text-white/30 hover:text-cyan-400 transition-colors uppercase tracking-wider font-mono"
+          >
+            <Settings className="w-3 h-3" />
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
+
+      {/* Modals */}
+      {isSettingsOpen && <SettingsPanel onClose={() => setIsSettingsOpen(false)} />}
+      {isLogsOpen && <LogsPanel onClose={() => setIsLogsOpen(false)} />}
     </div>
   );
 }

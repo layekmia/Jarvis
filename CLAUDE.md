@@ -84,8 +84,15 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Frontend: added `TaskProgressPanel.tsx` (animated step list + progress bar) shown center-column during active tasks.
   - `jarvisStore.ts` extended with `TaskStep`, `ActiveTask` types and `setTaskProgress()` action.
   - `scripts/test_phase8.py`: **ALL PASS**.
-- [ ] Phase 9: Vision
-- [ ] Phase 10: Polish & Safety Hardening
+- [x] **Phase 9: Vision (Visual Intelligence)** ✅
+  - OpenAI Vision (`gpt-4o`) integration via `VisionEngine`.
+  - Added `describe_screen` tool for answering visual questions.
+  - Added `click_element_on_screen` tool for interacting with UI elements by natural language description.
+  - Added `VisionPanel` component to the frontend to preview the screen and display LLM detection results in real-time.
+- [x] **Phase 10: Polish & Safety Hardening** ✅
+  - `shutdown_system` and `restart_system` tools added to `system.py`.
+  - Safety Hardening: Shutdown and Restart added to `RISKY_TOOLS` requiring user confirmation.
+  - UI Polish: Added `SettingsPanel` (Wake Word, Voice ID, Language prefs) and `LogsPanel` to view `systemLogs` history.
 
 ## 📂 Project Structure
 

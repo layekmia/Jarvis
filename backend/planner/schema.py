@@ -10,13 +10,28 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "open_app",
-            "description": "Opens an application on the user's Windows computer by its name.",
+            "description": (
+                "Opens an application on the user's Windows computer by its name. "
+                "For Chrome or Edge, also accepts an optional 'profile' argument to open "
+                "a specific browser profile (e.g. 'Layek', 'Rasel'). "
+                "If 'profile' is omitted, the last-used profile is used automatically — "
+                "no profile picker will appear."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
                         "description": "The name of the application to open (e.g., 'notepad', 'chrome', 'calculator')."
+                    },
+                    "profile": {
+                        "type": "string",
+                        "description": (
+                            "Optional. For Chrome or Edge only. "
+                            "The display name of the browser profile to open "
+                            "(e.g. 'Layek', 'Rasel', 'Entertop'). "
+                            "Omit this if the user did not specify a profile."
+                        )
                     }
                 },
                 "required": ["name"],
@@ -143,7 +158,29 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "take_screenshot",
-            "description": "Takes a screenshot of the main monitor and saves it.",
+            "description": "Takes a screenshot of the main screen and saves it.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "shutdown_system",
+            "description": "Shuts down the user's computer with a 60-second delay.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "restart_system",
+            "description": "Restarts the user's computer with a 60-second delay.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -151,7 +188,7 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
         }
     },
 
-    # ── Phase 5: File System Tools ────────────────────────────────────────────
+    # ── Phase 5: File Operations ──────────────────────────────────────────────
 
     {
         "type": "function",
@@ -369,7 +406,11 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "youtube_search",
-            "description": "Searches YouTube for the given query.",
+            "description": (
+                "Opens YouTube search results for the given query in Chrome (with the user's logged-in profile). "
+                "Use this when the user wants to browse or find videos — NOT when they want to immediately play a specific song/video. "
+                "For playing a specific song or video, use youtube_play instead."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -379,6 +420,42 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
                     }
                 },
                 "required": ["query"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "youtube_play",
+            "description": (
+                "Plays a specific song, video, or any YouTube content directly in Chrome. "
+                "Use this when the user says 'play [song name]', 'chalao', 'gaan ta play koro', or wants to watch something specific. "
+                "It finds the best matching video and opens it directly — no searching needed. "
+                "ALWAYS prefer this over youtube_search when the user's intent is to play/watch something."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The song name, artist, or video title to play (e.g. 'Mufi', 'Shape of You', 'Arijit Singh tum hi ho')."
+                    }
+                },
+                "required": ["query"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "youtube_open",
+            "description": (
+                "Opens the YouTube homepage in Chrome with the user's logged-in profile. "
+                "Use this when the user says 'open YouTube', 'YouTube kholo', or wants to go to YouTube without a specific video."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
             },
         }
     },
@@ -474,6 +551,43 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
                     }
                 },
                 "required": ["label"],
+            },
+        }
+    },
+
+    # ── Phase 9: Vision Tools ─────────────────────────────────────────────────
+
+    {
+        "type": "function",
+        "function": {
+            "name": "describe_screen",
+            "description": "Takes a screenshot of the user's computer screen and uses visual intelligence to answer a question about what is currently visible.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The question to ask the vision model about the screen."
+                    }
+                },
+                "required": ["question"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "click_element_on_screen",
+            "description": "Takes a screenshot, visually locates an element described by the user, and clicks its (x, y) coordinates on the screen.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "element_description": {
+                        "type": "string",
+                        "description": "A description of the UI element to click (e.g. 'the submit button', 'the search bar')."
+                    }
+                },
+                "required": ["element_description"],
             },
         }
     },

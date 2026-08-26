@@ -9,8 +9,9 @@ class SpeechToTextEngine:
         self.client = AsyncOpenAI(api_key=api_key)
         self.recognizer = sr.Recognizer()
         
-        # Adjust these values based on environment noise
-        self.recognizer.energy_threshold = 300  
+        # Adjust these values based on environment noise.
+        # 400 = slightly higher threshold to avoid picking up TTS room echo.
+        self.recognizer.energy_threshold = 400
         self.recognizer.dynamic_energy_threshold = True
         self.recognizer.pause_threshold = 1.8  # Reduced to 1.8s (sweet spot between cutoff and delay)
         

@@ -9,7 +9,11 @@ from backend.core.config import settings
 from backend.planner.schema import TOOLS_SCHEMA
 
 # Phase 4 - Computer Control tools
-from backend.tools.system import set_volume, set_brightness, get_system_info
+from backend.tools.system import (
+    set_volume, set_brightness, get_system_info,
+    shutdown_system, shutdown_system_confirmed,
+    restart_system, restart_system_confirmed,
+)
 from backend.tools.apps import open_app, close_app, switch_app
 from backend.tools.interaction import type_text, mouse_click, take_screenshot
 
@@ -38,6 +42,11 @@ from backend.tools.browser.browser_tools import (
     switch_tab,
     close_browser,
 )
+from backend.tools.browser.youtube_tools import (
+    youtube_play,
+    youtube_open,
+    youtube_search_chrome,
+)
 
 # Phase 7 - Memory tools
 from backend.tools.memory.memory_tools import remember, forget
@@ -58,6 +67,10 @@ TOOL_MAP = {
     "type_text": type_text,
     "mouse_click": mouse_click,
     "take_screenshot": take_screenshot,
+    "shutdown_system": shutdown_system,
+    "shutdown_system_confirmed": shutdown_system_confirmed,
+    "restart_system": restart_system,
+    "restart_system_confirmed": restart_system_confirmed,
     # Phase 5
     "search_file": search_file,
     "create_file": create_file,
@@ -73,7 +86,9 @@ TOOL_MAP = {
     # Phase 6
     "open_url": open_url,
     "search_web": search_web,
-    "youtube_search": youtube_search,
+    "youtube_search": youtube_search_chrome,   # Chrome-based, uses correct profile
+    "youtube_play": youtube_play,
+    "youtube_open": youtube_open,
     "fill_form": fill_form,
     "switch_tab": switch_tab,
     "close_browser": close_browser,
@@ -81,6 +96,11 @@ TOOL_MAP = {
     "remember": remember,
     "forget": forget,
 }
+
+# Phase 9 - Vision tools
+from backend.tools.vision.vision_tools import describe_screen, click_element_on_screen
+TOOL_MAP["describe_screen"] = describe_screen
+TOOL_MAP["click_element_on_screen"] = click_element_on_screen
 
 # Tools that should execute silently in the background without voice narration
 SILENT_TOOLS = {
@@ -119,6 +139,11 @@ FILE SYSTEM PATHS (use EXACTLY these — do NOT guess usernames or paths):
 - Downloads       : {home / 'Downloads'}
 - Username        : {username}
 - NEVER use paths like C:\\Users\\SomeOtherName\\ — always use the exact paths above.
+
+POWER ACTIONS (REQUIRE CONFIRMATION):
+- For shutdown_system and restart_system — the tool itself will return a confirmation prompt.
+  You MUST relay that message to the user and wait for their explicit yes/no before anything happens.
+- Never skip the confirmation step for shutdown or restart.
 
 FILE SYSTEM SAFETY RULES:
 - For delete_file, move_file, rename_file — the tool itself will return a confirmation prompt.

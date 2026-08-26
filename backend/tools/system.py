@@ -1,3 +1,4 @@
+import os
 import psutil
 from loguru import logger
 import screen_brightness_control as sbc
@@ -55,3 +56,54 @@ def get_system_info() -> str:
     except Exception as e:
         logger.error(f"Failed to get system info: {e}")
         return f"Failed to get system info: {str(e)}"
+
+# Sentinel prefix — mirrors the one in file_tools.py
+CONFIRM_PREFIX: str = "CONFIRM_NEEDED:"
+
+
+def shutdown_system() -> str:
+    """
+    Returns a CONFIRM_NEEDED sentinel asking the user to confirm shutdown.
+    Does NOT immediately shut down.
+    """
+    logger.warning("Shutdown requested — waiting for user confirmation.")
+    return (
+        f"{CONFIRM_PREFIX} Are you sure you want to shut down your PC? "
+        f"All unsaved work will be lost. "
+        f"[action=shutdown_system_confirmed]"
+    )
+
+
+def shutdown_system_confirmed() -> str:
+    """Actually executes the shutdown after explicit user confirmation."""
+    try:
+        os.system("shutdown /s /t 10")
+        logger.warning("System shutdown initiated (10s delay).")
+        return "Shutting down your PC in 10 seconds."
+    except Exception as e:
+        logger.error(f"Failed to shutdown system: {e}")
+        return f"Failed to shutdown system: {str(e)}"
+
+
+def restart_system() -> str:
+    """
+    Returns a CONFIRM_NEEDED sentinel asking the user to confirm restart.
+    Does NOT immediately restart.
+    """
+    logger.warning("Restart requested — waiting for user confirmation.")
+    return (
+        f"{CONFIRM_PREFIX} Are you sure you want to restart your PC? "
+        f"All unsaved work will be lost. "
+        f"[action=restart_system_confirmed]"
+    )
+
+
+def restart_system_confirmed() -> str:
+    """Actually executes the restart after explicit user confirmation."""
+    try:
+        os.system("shutdown /r /t 10")
+        logger.warning("System restart initiated (10s delay).")
+        return "Restarting your PC in 10 seconds."
+    except Exception as e:
+        logger.error(f"Failed to restart system: {e}")
+        return f"Failed to restart system: {str(e)}"

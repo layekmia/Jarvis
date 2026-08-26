@@ -14,6 +14,13 @@ from pathlib import Path
 from typing import Optional
 from loguru import logger
 
+try:
+    from rapidfuzz import fuzz as _fuzz
+    _RAPIDFUZZ_AVAILABLE = True
+except ImportError:
+    _RAPIDFUZZ_AVAILABLE = False
+    logger.warning("rapidfuzz not installed — fuzzy file search disabled. Run: pip install rapidfuzz")
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 # Directories that Jarvis is allowed to operate in by default.
@@ -73,6 +80,30 @@ def _format_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 ** 3):.2f} GB"
 
 
+# ── Fuzzy Matching Helper ──────────────────────────────────────────────────────
+
+def _normalize_name(name: str) -> str:
+    """Lowercase and collapse underscores/hyphens/spaces into a single space."""
+    import re
+    name = name.lower()
+    name = re.sub(r"[_\-]+", " ", name)   # _ and - → space
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+
+def _fuzzy_file_score(query_norm: str, entry: str) -> int:
+    """Return rapidfuzz partial_ratio score (0-100) between query and entry name."""
+    if not _RAPIDFUZZ_AVAILABLE:
+        return 0
+    # Compare against stem (no extension) AND full filename
+    stem_norm = _normalize_name(Path(entry).stem)
+    full_norm = _normalize_name(entry)
+    return max(
+        _fuzz.partial_ratio(query_norm, stem_norm),
+        _fuzz.partial_ratio(query_norm, full_norm),
+    )
+
+
 # ── Tool Functions ─────────────────────────────────────────────────────────────
 
 def search_file(
@@ -80,20 +111,26 @@ def search_file(
     search_in: Optional[str] = None,
     location: Optional[str] = None,   # alias for search_in (LLM sometimes uses this name)
     max_results: int = 10,
+    fuzzy_threshold: int = 70,
 ) -> str:
     """
-    Searches for files and folders matching a name pattern (glob supported).
+    Searches for files and folders matching a name pattern.
+
+    First tries exact/glob matching (fnmatch). If no results are found,
+    falls back to rapidfuzz fuzzy matching (partial_ratio >= fuzzy_threshold).
 
     Args:
-        query:      Filename or glob pattern, e.g. "report.pdf" or "*.py"
-        search_in:  Optional absolute path to restrict the search. 
-                    Defaults to the user's home directory.
-        max_results: Maximum number of results to return.
+        query:           Filename or glob pattern, e.g. "report.pdf" or "*.py"
+        search_in:       Optional absolute path to restrict the search.
+                         Defaults to the user's home directory.
+        location:        Alias for search_in (some LLM calls use this key).
+        max_results:     Maximum number of results to return.
+        fuzzy_threshold: Minimum rapidfuzz score (0-100) to count as a match.
 
     Returns:
         Human-readable string listing matching paths, or an error message.
     """
-    # Accept 'location' as an alias for 'search_in' (LLM sometimes passes 'location')
+    # Accept 'location' as an alias for 'search_in'
     effective_search_in = search_in or location
     base = Path(effective_search_in) if effective_search_in else Path.home()
 
@@ -106,20 +143,23 @@ def search_file(
         return f"Search in '{base}' is not allowed for safety reasons."
 
     logger.info(f"Searching for '{query}' in '{base}'...")
-    matches: list[str] = []
+
+    # ── Pass 1: exact / glob match (original behaviour) ───────────────────────
+    exact_matches: list[str] = []
+    all_entries_cache: list[tuple[str, str]] = []  # (full_path, filename)
 
     try:
         for root_dir, dirs, files in os.walk(base):
-            # Skip hidden directories (e.g. .git, .venv)
             dirs[:] = [d for d in dirs if not d.startswith(".")]
             all_entries = dirs + files
             for entry in all_entries:
+                full = os.path.join(root_dir, entry)
+                all_entries_cache.append((full, entry))
                 if fnmatch.fnmatch(entry.lower(), query.lower()):
-                    full = os.path.join(root_dir, entry)
-                    matches.append(full)
-                    if len(matches) >= max_results:
+                    exact_matches.append(full)
+                    if len(exact_matches) >= max_results:
                         break
-            if len(matches) >= max_results:
+            if len(exact_matches) >= max_results:
                 break
     except PermissionError as e:
         logger.error(f"Permission denied during search: {e}")
@@ -128,16 +168,45 @@ def search_file(
         logger.error(f"Unexpected error during search: {e}")
         return f"An error occurred during the file search: {str(e)}"
 
-    if not matches:
+    if exact_matches:
+        result_lines = [f"Found {len(exact_matches)} result(s) for '{query}':"]
+        for m in exact_matches:
+            result_lines.append(f"  • {m}")
+        if len(exact_matches) >= max_results:
+            result_lines.append(f"  (Showing first {max_results} results. Be more specific to narrow down.)")
+        logger.success(f"search_file: {len(exact_matches)} exact match(es) for '{query}'")
+        return "\n".join(result_lines)
+
+    # ── Pass 2: fuzzy match (rapidfuzz) ───────────────────────────────────────
+    if not _RAPIDFUZZ_AVAILABLE:
         return f"No files or folders matching '{query}' were found in '{base}'."
 
-    result_lines = [f"Found {len(matches)} result(s) for '{query}':"]
-    for m in matches:
-        result_lines.append(f"  • {m}")
-    if len(matches) >= max_results:
-        result_lines.append(f"  (Showing first {max_results} results. Be more specific to narrow down.)")
+    logger.info(f"No exact matches — trying fuzzy search for '{query}'...")
+    query_norm = _normalize_name(query)
 
-    logger.success(f"search_file: found {len(matches)} matches for '{query}'")
+    scored: list[tuple[int, str]] = []
+    for full_path, entry in all_entries_cache:
+        score = _fuzzy_file_score(query_norm, entry)
+        if score >= fuzzy_threshold:
+            scored.append((score, full_path))
+
+    if not scored:
+        return (
+            f"No files or folders matching '{query}' were found in '{base}'.\n"
+            f"(Fuzzy search also found no close matches with threshold {fuzzy_threshold}%.)"
+        )
+
+    # Sort by score descending, take top max_results
+    scored.sort(key=lambda x: x[0], reverse=True)
+    fuzzy_matches = scored[:max_results]
+
+    result_lines = [f"No exact match for '{query}' — showing {len(fuzzy_matches)} fuzzy result(s):"]
+    for score, path in fuzzy_matches:
+        result_lines.append(f"  • {path}  (match: {score}%)")
+    if len(scored) > max_results:
+        result_lines.append(f"  (Showing top {max_results} of {len(scored)} fuzzy results.)")
+
+    logger.success(f"search_file: {len(fuzzy_matches)} fuzzy match(es) for '{query}'")
     return "\n".join(result_lines)
 
 

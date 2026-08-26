@@ -20,6 +20,9 @@ class AudioPlayer:
             return
         logger.info("Playing audio...")
         await asyncio.to_thread(self._play, audio_data)
+        # Wait for the OS audio buffer AND room acoustics to settle before
+        # the STT microphone turns on. 1.2s covers both buffer drain + reverb.
+        await asyncio.sleep(1.2)
 
     def _play(self, audio_data: bytes):
         """Detect format and play accordingly."""

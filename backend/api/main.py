@@ -16,6 +16,9 @@ import asyncio
 # Without this, Playwright raises NotImplementedError at transport.connect().
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    # Uvicorn explicitly sets WindowsSelectorEventLoopPolicy on Windows, which breaks Playwright.
+    # Monkey-patch it so Uvicorn cannot override our Proactor policy.
+    asyncio.set_event_loop_policy = lambda policy: None
 
 import json
 from datetime import datetime
@@ -272,7 +275,7 @@ async def voice_loop() -> None:
             
             # 2a. Play cinematic wake greeting (Speaking state briefly)
             await broadcast_event("brain_state", {"state": "speaking"})
-            greeting = "Yes, sir. I'm online and ready. How can I assist you today?"
+            greeting = "Welcome back boss. All systems are functioning within normal parameters. How can I assist you today?"
             greeting_audio = await tts_engine.generate_speech(greeting)
             await player.play_audio_async(greeting_audio)
             logger.info(f"Played wake greeting: '{greeting}'")
@@ -349,9 +352,14 @@ async def voice_loop() -> None:
                 audio_bytes = await tts_engine.generate_speech(response_text)
                 await player.play_audio_async(audio_bytes)
 
+                # Wait for speaker output to fully die out before turning mic back on.
+                # Without this pause the STT picks up room echo / reverb from Jarvis's own voice.
+                await asyncio.sleep(1.0)
+
                 # Sync memory to all connected clients in case AI used remember/forget
                 await broadcast_event("set_memory", {"entries": get_all_memories()})
 
+                logger.info("Response complete. Resuming listening...")
                 # Loop continues — back to listening state automatically
 
         except Exception as e:
@@ -368,6 +376,6 @@ if __name__ == "__main__":
         "backend.api.main:app",
         host=settings.backend_host,
         port=settings.backend_port,
-        reload=False,
+        reload=True,
         log_level=settings.log_level.lower(),
     )

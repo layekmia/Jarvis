@@ -15,4 +15,4 @@ if not exist "backend\.venv\Scripts\python.exe" (
 echo Using Python: backend\.venv\Scripts\python.exe
 echo.
 
-backend\.venv\Scripts\python.exe -m uvicorn backend.api.main:app --host 127.0.0.1 --port 8765 --reload
+backend\.venv\Scripts\python.exe -m backend.api.main

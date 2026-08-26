@@ -48,8 +48,8 @@ class JarvisWebSocket {
       try {
         const message: JarvisMessage = JSON.parse(event.data);
         console.debug('[Jarvis WS] Received:', message.type, message.payload);
-        this.emit(message.type, message);
-        this.emit('*', message); // wildcard listener
+        this.emit(message.type, message.payload);
+        this.emit('*', message.payload); // wildcard listener
       } catch (err) {
         console.error('[Jarvis WS] Failed to parse message:', event.data, err);
       }
