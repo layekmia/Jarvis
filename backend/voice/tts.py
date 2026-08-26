@@ -24,7 +24,7 @@ class TextToSpeechEngine:
         }
         data = {
             "text": text,
-            "model_id": "eleven_multilingual_v2",
+            "model_id": "eleven_v3",
         }
 
         try:

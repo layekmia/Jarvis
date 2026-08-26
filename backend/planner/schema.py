@@ -1,8 +1,11 @@
 from typing import Any
 
-# OpenAI Function Calling Schema for Phase 4 Tools
+# OpenAI Function Calling Schema for Phase 4 + Phase 5 Tools
 
 TOOLS_SCHEMA: list[dict[str, Any]] = [
+
+    # ── Phase 4: Computer Control ─────────────────────────────────────────────
+
     {
         "type": "function",
         "function": {
@@ -146,5 +149,183 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
                 "properties": {},
             },
         }
-    }
+    },
+
+    # ── Phase 5: File System Tools ────────────────────────────────────────────
+
+    {
+        "type": "function",
+        "function": {
+            "name": "search_file",
+            "description": (
+                "Searches for files or folders by name (supports glob patterns like *.py). "
+                "Searches within the user's home directory by default."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Filename or glob pattern to search for, e.g. 'report.pdf' or '*.txt'."
+                    },
+                    "search_in": {
+                        "type": "string",
+                        "description": "Optional absolute directory path to restrict the search to."
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return. Defaults to 10."
+                    }
+                },
+                "required": ["query"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_file",
+            "description": "Creates a new file at the specified path, optionally with text content.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path for the new file, e.g. 'C:/Users/user/Desktop/notes.txt'."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Optional text content to write into the new file."
+                    }
+                },
+                "required": ["path"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file_summary",
+            "description": (
+                "Reads a text file and returns a summary of its content along with metadata "
+                "(size, last modified date). Does not work on binary files like images or executables."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file to read."
+                    }
+                },
+                "required": ["path"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "copy_file",
+            "description": "Copies a file or folder to a new destination path.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "description": "Absolute path of the file or folder to copy."
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Absolute destination path."
+                    }
+                },
+                "required": ["source", "destination"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "move_file",
+            "description": (
+                "Moves a file or folder to a new location. "
+                "This is a potentially destructive action — Jarvis will ask for user confirmation before proceeding."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "description": "Absolute path of the file or folder to move."
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Absolute destination path."
+                    }
+                },
+                "required": ["source", "destination"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rename_file",
+            "description": (
+                "Renames a file or folder. "
+                "This is a potentially destructive action — Jarvis will ask for user confirmation before proceeding."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path of the file or folder to rename."
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": "The new filename (just the name portion, not a full path)."
+                    }
+                },
+                "required": ["path", "new_name"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_file",
+            "description": (
+                "Permanently deletes a file or folder. "
+                "ALWAYS requires user confirmation — Jarvis will always ask before deleting anything."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path of the file or folder to delete."
+                    }
+                },
+                "required": ["path"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_directory",
+            "description": "Lists all files and folders inside a given directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path of the directory to list."
+                    }
+                },
+                "required": ["path"],
+            },
+        }
+    },
 ]

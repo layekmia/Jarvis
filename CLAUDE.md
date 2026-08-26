@@ -52,7 +52,14 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Created `backend/tools/interaction.py` (type text, click, screenshot).
   - Added **Tool Dispatcher & Real-Time Narration** in `backend/ai/planner.py`. Jarvis now narrates step-by-step actions (e.g., "Opening notepad...", "Done, sir") while executing tools.
   - Handled silent/soft notifications for actions like closing apps ("বন্ধ করছি...").
-- [ ] Phase 5: File System Control
+- [x] **Phase 5: File System Control** ✅
+  - Created `backend/tools/files/file_tools.py` with full file system tools.
+  - Tools: `search_file`, `create_file`, `read_file_summary`, `copy_file`, `move_file`, `rename_file`, `delete_file`, `list_directory`.
+  - Destructive operations (`move`, `rename`, `delete`) return a `CONFIRM_NEEDED:` sentinel — the AI brain intercepts this and waits for the user to say yes/no before executing.
+  - Safety guard: all operations are restricted to `ALLOWED_ROOTS` (home dir and sub-dirs). Attempts to access system paths (e.g. `C:\Windows`) are blocked.
+  - `AIBrain` in `planner.py` updated with `_pending_confirmation` state and `_handle_pending_confirmation()` to resolve yes/no voice replies.
+  - `backend/planner/schema.py` updated with Phase 5 tool schemas.
+  - `scripts/test_phase5.py`: **22/22 tests PASS**.
 - [ ] Phase 6: Browser Automation
 - [ ] Phase 7: Memory
 - [ ] Phase 8: Agentic Multi-Step Tasks
@@ -129,12 +136,15 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 4 Next Steps (Basic Computer Control)
+## 📌 Phase 6 Next Steps (Browser Automation)
 
-1. Implement PyAutoGUI actions in `backend/tools/system/` and `backend/tools/apps/`.
-2. Connect `AIBrain` intent tool calls to actual function executions.
-3. Handle Windows-specific requirements like `pycaw` for volume and `screen-brightness-control` for brightness.
-4. Provide TTS feedback upon successful completion of computer commands.
+1. Install Playwright: `backend\.venv\Scripts\pip.exe install playwright` then `backend\.venv\Scripts\playwright.exe install chromium`.
+2. Create `backend/tools/browser/browser_tools.py` with tools: `open_url`, `search_web`, `youtube_search`, basic form fill, tab switch.
+3. Use **headed mode** so browser actions are visible on screen.
+4. Add Phase 6 tool schemas to `backend/planner/schema.py`.
+5. Import browser tools in `backend/ai/planner.py` TOOL_MAP.
+6. Write `scripts/test_phase6.py` sanity check.
+7. Git commit and update CLAUDE.md.
 
 ## ⚠️ Known Issues / TODOs
 
