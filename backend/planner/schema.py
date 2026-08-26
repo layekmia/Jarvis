@@ -328,4 +328,107 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
             },
         }
     },
+
+    # ── Phase 6: Browser Automation Tools ─────────────────────────────────────
+
+    {
+        "type": "function",
+        "function": {
+            "name": "open_url",
+            "description": "Opens a given URL in the web browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to open, e.g. 'https://example.com'."
+                    }
+                },
+                "required": ["url"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_web",
+            "description": "Searches Google for the given query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query."
+                    }
+                },
+                "required": ["query"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "youtube_search",
+            "description": "Searches YouTube for the given query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The video search query."
+                    }
+                },
+                "required": ["query"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fill_form",
+            "description": "Fills an input field on the current web page.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "The CSS selector of the input field to fill."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The value to fill in the field."
+                    }
+                },
+                "required": ["selector", "value"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "switch_tab",
+            "description": "Switches to an open browser tab by index (0-based).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "index": {
+                        "type": "integer",
+                        "description": "The 0-based index of the tab to switch to."
+                    }
+                },
+                "required": ["index"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "close_browser",
+            "description": "Closes the browser window.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        }
+    },
 ]

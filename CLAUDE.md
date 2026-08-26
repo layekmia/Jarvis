@@ -60,7 +60,13 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - `AIBrain` in `planner.py` updated with `_pending_confirmation` state and `_handle_pending_confirmation()` to resolve yes/no voice replies.
   - `backend/planner/schema.py` updated with Phase 5 tool schemas.
   - `scripts/test_phase5.py`: **22/22 tests PASS**.
-- [ ] Phase 6: Browser Automation
+- [x] **Phase 6: Browser Automation** ✅
+  - Installed Playwright and Chromium.
+  - Created `backend/tools/browser/browser_tools.py` using Playwright's sync API.
+  - Features: `open_url`, `search_web`, `youtube_search`, `fill_form`, `switch_tab`, `close_browser`.
+  - Maintains a singleton Playwright browser instance so consecutive tool calls operate on the same window.
+  - Handled generic selectors and Google/YouTube consent flows dynamically.
+  - Added tools to `schema.py` and `planner.py`.
 - [ ] Phase 7: Memory
 - [ ] Phase 8: Agentic Multi-Step Tasks
 - [ ] Phase 9: Vision
@@ -136,15 +142,13 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 6 Next Steps (Browser Automation)
+## 📌 Phase 7 Next Steps (Memory)
 
-1. Install Playwright: `backend\.venv\Scripts\pip.exe install playwright` then `backend\.venv\Scripts\playwright.exe install chromium`.
-2. Create `backend/tools/browser/browser_tools.py` with tools: `open_url`, `search_web`, `youtube_search`, basic form fill, tab switch.
-3. Use **headed mode** so browser actions are visible on screen.
-4. Add Phase 6 tool schemas to `backend/planner/schema.py`.
-5. Import browser tools in `backend/ai/planner.py` TOOL_MAP.
-6. Write `scripts/test_phase6.py` sanity check.
-7. Git commit and update CLAUDE.md.
+1. Create a SQLite database table or use a JSON file in `backend/data/` for storing memory entries.
+2. Add a `remember` tool that takes a category (e.g., preference, fact) and content.
+3. Add a `fetch_memory` tool or have the AI Brain automatically fetch all active memories and inject them into the `SYSTEM_PROMPT` on startup.
+4. Broadcast memory updates to the React frontend via WebSocket so the **Active Memory Panel** (`ActiveMemoryPanel.tsx`) reflects the current memories.
+5. Update `CLAUDE.md` and git commit.
 
 ## ⚠️ Known Issues / TODOs
 

@@ -27,6 +27,16 @@ from backend.tools.files.file_tools import (
     CONFIRM_PREFIX,
 )
 
+# Phase 6 - Browser Automation tools
+from backend.tools.browser.browser_tools import (
+    open_url,
+    search_web,
+    youtube_search,
+    fill_form,
+    switch_tab,
+    close_browser,
+)
+
 # Map tool names to actual python functions
 TOOL_MAP = {
     # Phase 4
@@ -51,6 +61,13 @@ TOOL_MAP = {
     "delete_file": delete_file,
     "delete_file_confirmed": delete_file_confirmed,
     "list_directory": list_directory,
+    # Phase 6
+    "open_url": open_url,
+    "search_web": search_web,
+    "youtube_search": youtube_search,
+    "fill_form": fill_form,
+    "switch_tab": switch_tab,
+    "close_browser": close_browser,
 }
 
 SYSTEM_PROMPT = """
@@ -60,16 +77,16 @@ If the user's request requires an action (like opening an app, changing volume, 
 You can chain multiple tools if needed (e.g., open app -> type text -> enter).
 If no tool is applicable, just reply conversationally.
 
-CRITICAL LANGUAGE INSTRUCTION:
-The user may speak or type in English, Bengali, Banglish (Bengali written in English letters), or a mix of languages.
-You must respond in the same language the user uses.
-If the user speaks in English, reply in English.
-If the user speaks in Bengali (Bangla) or Banglish, reply in Bengali but smartly mix English words where appropriate (Banglish / code-mixing) to sound natural and modern.
-Keep your responses concise, professional, and friendly.
+LANGUAGE INSTRUCTION:
+The user may speak or type in English, Bengali, Banglish (Bengali written in English letters), or a mix.
+You MUST ALWAYS reply in English only — regardless of what language the user uses.
+Understand Bengali/Banglish input perfectly, but your response text must always be in English.
+This is critical because the text-to-speech voice is an English voice and cannot pronounce Bengali properly.
+Keep your responses concise, natural-sounding, and friendly.
 
 FILE SYSTEM SAFETY RULES:
 - For delete_file, move_file, rename_file — the tool itself will return a confirmation prompt.
-  You must relay that confirmation message to the user exactly and wait for their yes/no.
+  You must relay that confirmation message to the user and wait for their yes/no.
 - Never skip the confirmation step for destructive file operations.
 - Always use absolute Windows paths (e.g., C:/Users/layek/Desktop/file.txt).
 """
@@ -318,5 +335,17 @@ class AIBrain:
             return "Checking before deletion..."
         elif func_name == "list_directory":
             return "Listing directory contents..."
+        elif func_name == "open_url":
+            return "Opening the website..."
+        elif func_name == "search_web":
+            return "Searching the web..."
+        elif func_name == "youtube_search":
+            return "Searching YouTube..."
+        elif func_name == "fill_form":
+            return "Filling the form..."
+        elif func_name == "switch_tab":
+            return "Switching tabs..."
+        elif func_name == "close_browser":
+            return "Closing the browser..."
         else:
             return "Executing task."
