@@ -67,7 +67,15 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Maintains a singleton Playwright browser instance so consecutive tool calls operate on the same window.
   - Handled generic selectors and Google/YouTube consent flows dynamically.
   - Added tools to `schema.py` and `planner.py`.
-- [ ] Phase 7: Memory
+- [x] **Phase 7: Memory** ✅
+  - Created SQLite memory database (`backend/memory/db.py`) with UPSERT logic (unique `category` + `label`).
+  - Added AI memory tools: `remember` and `forget`.
+  - Updated LLM `SYSTEM_PROMPT` to spontaneously remember user facts/preferences.
+  - Implemented Short-term Conversation Buffer: AI Brain now keeps the last 16 messages (8 turns) in session memory to maintain conversational continuity.
+  - Injected explicit memory (from DB) into the `SYSTEM_PROMPT` dynamically on every turn.
+  - Built WebSocket event `set_memory` to sync real-time active memories to the frontend `ActiveMemoryPanel.tsx`.
+  - Frontend Zustand store updated to reactively display synced memories without dummy data.
+  - `scripts/test_phase7.py`: **ALL PASS**.
 - [ ] Phase 8: Agentic Multi-Step Tasks
 - [ ] Phase 9: Vision
 - [ ] Phase 10: Polish & Safety Hardening
@@ -142,12 +150,12 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 7 Next Steps (Memory)
+## 📌 Phase 8 Next Steps (Agentic Multi-Step Tasks)
 
-1. Create a SQLite database table or use a JSON file in `backend/data/` for storing memory entries.
-2. Add a `remember` tool that takes a category (e.g., preference, fact) and content.
-3. Add a `fetch_memory` tool or have the AI Brain automatically fetch all active memories and inject them into the `SYSTEM_PROMPT` on startup.
-4. Broadcast memory updates to the React frontend via WebSocket so the **Active Memory Panel** (`ActiveMemoryPanel.tsx`) reflects the current memories.
+1. Build a multi-step task planner inside `backend/ai/`.
+2. Break down complex commands (e.g. "set up my dev environment") into a list of sequential steps.
+3. Execute each step sequentially, handling failures and retries.
+4. Add a progress tracker UI in the frontend and stream progress via WebSocket.
 5. Update `CLAUDE.md` and git commit.
 
 ## ⚠️ Known Issues / TODOs

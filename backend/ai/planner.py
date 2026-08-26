@@ -37,6 +37,10 @@ from backend.tools.browser.browser_tools import (
     close_browser,
 )
 
+# Phase 7 - Memory tools
+from backend.tools.memory.memory_tools import remember, forget
+from backend.memory.db import get_all_memories
+
 # Map tool names to actual python functions
 TOOL_MAP = {
     # Phase 4
@@ -68,6 +72,9 @@ TOOL_MAP = {
     "fill_form": fill_form,
     "switch_tab": switch_tab,
     "close_browser": close_browser,
+    # Phase 7
+    "remember": remember,
+    "forget": forget,
 }
 
 SYSTEM_PROMPT = """
@@ -89,6 +96,10 @@ FILE SYSTEM SAFETY RULES:
   You must relay that confirmation message to the user and wait for their yes/no.
 - Never skip the confirmation step for destructive file operations.
 - Always use absolute Windows paths (e.g., C:/Users/layek/Desktop/file.txt).
+
+MEMORY & CONTEXT RULES:
+- If the user shares a preference, fact, or personal information (even without explicitly asking you to remember), you MUST spontaneously use the 'remember' tool to save it.
+- Examples: "My name is John", "I like blue", "Use Chrome by default".
 """
 
 
@@ -125,6 +136,9 @@ class AIBrain:
 
         # Pending confirmations: maps a pending action key -> (func_name, args)
         self._pending_confirmation: dict[str, tuple[str, dict]] = {}
+        
+        # Short-term conversation buffer (list of dict messages)
+        self.conversation_history: list[dict] = []
 
     async def _call_llm(self, model: str, messages: list) -> dict:
         """Helper to call OpenAI with a specific model and return the response."""
@@ -164,10 +178,20 @@ class AIBrain:
                     broadcast_callback=broadcast_callback,
                 )
 
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": text}
-        ]
+        # ── 1. Fetch Explicit Memories ─────────────────────────────────────────
+        memories = get_all_memories()
+        memory_str = "\n".join([f"- [{m['category'].upper()}] {m['label']}: {m['value']}" for m in memories])
+        if memory_str:
+            memory_context = f"\n\n--- ACTIVE MEMORY (FACTS & PREFERENCES) ---\n{memory_str}\n(Update this using 'remember' or 'forget' tools if needed)."
+        else:
+            memory_context = "\n\n--- ACTIVE MEMORY ---\nEmpty. (Use 'remember' tool spontaneously when user shares facts/preferences)."
+
+        dynamic_system_prompt = SYSTEM_PROMPT + memory_context
+
+        # ── 2. Assemble Messages with Short-Term History ───────────────────────
+        messages = [{"role": "system", "content": dynamic_system_prompt}]
+        messages.extend(self.conversation_history)
+        messages.append({"role": "user", "content": text})
 
         try:
             logger.info(f"🧠 AI Brain processing intent with {self.default_model}...")
@@ -177,14 +201,32 @@ class AIBrain:
             if not message.content and not message.tool_calls:
                 raise ValueError("Ambiguous empty response from Luna")
 
-            return await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
+            final_response_text = await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
+            
+            # Save to conversation history (user + final AI response)
+            self.conversation_history.append({"role": "user", "content": text})
+            self.conversation_history.append({"role": "assistant", "content": final_response_text})
+            
+            # Keep only the last 16 turns (8 user-assistant pairs)
+            if len(self.conversation_history) > 16:
+                self.conversation_history = self.conversation_history[-16:]
+                
+            return final_response_text
 
         except Exception as e:
             logger.warning(f"⚠️ Luna model failed or ambiguous: {e}. Falling back to Terra ({self.fallback_model})...")
             try:
                 response = await self._call_llm(self.fallback_model, messages)
                 message = response.choices[0].message
-                return await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
+                final_response_text = await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
+                
+                # Save to conversation history
+                self.conversation_history.append({"role": "user", "content": text})
+                self.conversation_history.append({"role": "assistant", "content": final_response_text})
+                if len(self.conversation_history) > 16:
+                    self.conversation_history = self.conversation_history[-16:]
+                    
+                return final_response_text
             except Exception as e2:
                 logger.error(f"❌ Terra fallback also failed: {e2}")
                 return "I'm having trouble connecting to my AI server. Please check your internet connection and try again."

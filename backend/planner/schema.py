@@ -431,4 +431,50 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
             },
         }
     },
+
+    # ── Phase 7: Memory Tools ─────────────────────────────────────────────────
+
+    {
+        "type": "function",
+        "function": {
+            "name": "remember",
+            "description": "Saves an important fact, user preference, or context to long-term memory. Use this spontaneously when the user shares personal info or preferences, even if they don't explicitly say 'remember'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": ["context", "preference", "task", "fact"],
+                        "description": "The category of the memory."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "A short, unique label for this memory (e.g., 'user_name', 'favorite_color')."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The actual information to remember."
+                    }
+                },
+                "required": ["category", "label", "value"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "forget",
+            "description": "Removes a memory from long-term memory by its label.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "The label of the memory to forget."
+                    }
+                },
+                "required": ["label"],
+            },
+        }
+    },
 ]

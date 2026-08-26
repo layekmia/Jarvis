@@ -83,30 +83,8 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
     uptime: '0m',
   },
 
-  // Seed with realistic dummy memory entries for UI demo
-  memoryEntries: [
-    {
-      id: '1',
-      label: 'User Name',
-      value: 'Layek',
-      category: 'fact',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      label: 'Preferred Language',
-      value: 'Bangla + English',
-      category: 'preference',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      label: 'Current Project',
-      value: 'Building Jarvis AI',
-      category: 'context',
-      timestamp: new Date().toISOString(),
-    },
-  ],
+  // Start with empty memory (fetched from backend)
+  memoryEntries: [],
 
   // === Actions ===
   setConnected: (connected, error) =>

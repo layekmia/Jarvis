@@ -24,6 +24,7 @@ from backend.voice.stt import SpeechToTextEngine
 from backend.voice.tts import TextToSpeechEngine
 from backend.voice.audio_player import AudioPlayer
 from backend.memory.guard import RateLimitGuard, RateLimitExceeded
+from backend.memory.db import init_db, get_all_memories
 from backend.ai.planner import AIBrain
 
 # ── App setup ────────────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ connected_clients: list[WebSocket] = []
 async def startup_event() -> None:
     """Runs on server start. Validates OpenAI API key."""
     logger.info("🚀 Jarvis backend starting...")
+    init_db()
     await validate_openai_key()
     
     # Start voice engine loop in the background
@@ -133,6 +135,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         "message": "Jarvis backend connected!",
         "version": "0.1.0",
         "timestamp": datetime.utcnow().isoformat(),
+    })
+
+    # Send initial memory state
+    await send_event(websocket, "set_memory", {
+        "entries": get_all_memories()
     })
 
     try:
@@ -329,6 +336,9 @@ async def voice_loop() -> None:
 
                 audio_bytes = await tts_engine.generate_speech(response_text)
                 await player.play_audio_async(audio_bytes)
+
+                # Sync memory to all connected clients in case AI used remember/forget
+                await broadcast_event("set_memory", {"entries": get_all_memories()})
 
                 # Loop continues — back to listening state automatically
 

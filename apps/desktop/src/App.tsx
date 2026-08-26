@@ -28,7 +28,7 @@ const DEMO_MESSAGES = [
 let demoIndex = 0;
 
 function App() {
-  const { setConnected, addMessage } = useJarvisStore();
+  const { setConnected, addMessage, setMemoryEntries } = useJarvisStore();
 
   // WebSocket connection management
   useEffect(() => {
@@ -67,15 +67,24 @@ function App() {
       }
     });
 
+    // Handle active memory sync from backend
+    const unsubMemory = jarvisWS.on('set_memory', (data: unknown) => {
+      const d = data as { entries?: any[] };
+      if (d?.entries && Array.isArray(d.entries)) {
+        setMemoryEntries(d.entries);
+      }
+    });
+
     return () => {
       unsubConnected();
       unsubDisconnected();
       unsubError();
       unsubBrainState();
       unsubMessage();
+      unsubMemory();
       jarvisWS.disconnect();
     };
-  }, [setConnected, addMessage]);
+  }, [setConnected, addMessage, setMemoryEntries]);
 
   // Add demo messages for Phase 1 UI testing
   const handleAddDemoMessage = useCallback(() => {
