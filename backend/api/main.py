@@ -258,57 +258,80 @@ async def voice_loop() -> None:
             await player.play_audio_async(greeting_audio)
             logger.info(f"Played wake greeting: '{greeting}'")
             
-            # Active listening loop: Keep listening until user says to stop
+            # Active listening loop: Keep listening until user explicitly says to stop.
+            # Timeouts / empty transcriptions do NOT exit this loop —
+            # only explicit sleep commands from the user will break it.
+            consecutive_timeouts: int = 0
+            MAX_CONSECUTIVE_TIMEOUTS: int = 10  # safety valve: ~10 × 10s = ~100s of total silence
+
             while True:
-                # 2b. Now switch to Listening and record command
+                # Switch UI to Listening
                 await broadcast_event("brain_state", {"state": "listening"})
-                
-                # 2. Record and perform STT
+
+                # Record and transcribe
                 text = await stt_engine.listen_and_transcribe()
-                
+
                 if not text:
-                    logger.info("No speech detected. Going back to sleep mode.")
-                    await broadcast_event("brain_state", {"state": "idle"})
-                    break
-                
-                # Check for sleep commands
+                    consecutive_timeouts += 1
+                    logger.info(
+                        f"No speech detected (timeout #{consecutive_timeouts}/{MAX_CONSECUTIVE_TIMEOUTS}). "
+                        "Staying in listening mode — waiting for your command..."
+                    )
+                    # Only go to sleep after MAX_CONSECUTIVE_TIMEOUTS of pure silence
+                    if consecutive_timeouts >= MAX_CONSECUTIVE_TIMEOUTS:
+                        logger.info(
+                            f"Reached {MAX_CONSECUTIVE_TIMEOUTS} consecutive timeouts. "
+                            "Going to sleep (safety timeout)."
+                        )
+                        await broadcast_event("brain_state", {"state": "idle"})
+                        break
+                    # Otherwise keep looping — don't sleep
+                    continue
+
+                # Got speech — reset timeout counter
+                consecutive_timeouts = 0
+
+                # Check for explicit sleep commands
                 text_lower = text.lower()
-                sleep_phrases = ["sleep", "stop listening", "goodbye", "bye", "go to sleep"]
+                sleep_phrases = [
+                    "sleep", "stop listening", "goodbye", "bye",
+                    "go to sleep", "ঘুমাও", "ঘুমিয়ে যাও", "বিশ্রাম নাও"
+                ]
                 if any(phrase in text_lower for phrase in sleep_phrases):
                     logger.info("Sleep command received. Going back to sleep mode.")
                     await broadcast_event("brain_state", {"state": "idle"})
                     break
-                    
+
                 # Send transcribed text to UI
                 await broadcast_event("message", {"text": text, "role": "user"})
-                
-                # 3. AI Brain (Phase 3 Intent Understanding + Planning)
+
+                # 3. AI Brain
                 await broadcast_event("brain_state", {"state": "thinking"})
-                
+
                 try:
                     guard.check_limit()
                     response_text = await brain.process_intent(
-                    text, 
-                    tts_engine=tts_engine, 
-                    player=player, 
-                    broadcast_callback=broadcast_event
-                )
+                        text,
+                        tts_engine=tts_engine,
+                        player=player,
+                        broadcast_callback=broadcast_event
+                    )
                     guard.log_usage(tokens=1)
                 except RateLimitExceeded:
                     response_text = "I've reached my daily usage limit. Please try again tomorrow."
                 except Exception as brain_err:
                     logger.error(f"Brain processing failed: {brain_err}")
                     response_text = "I'm having trouble reaching my AI server right now. Please try again shortly."
-                
-                # 4. Generate TTS and Play
+
+                # 4. TTS + Play
                 await broadcast_event("brain_state", {"state": "speaking"})
                 await broadcast_event("message", {"text": response_text, "role": "jarvis"})
-                
+
                 audio_bytes = await tts_engine.generate_speech(response_text)
                 await player.play_audio_async(audio_bytes)
-                
-                # Loop repeats: automatically goes back to listening state
-            
+
+                # Loop continues — back to listening state automatically
+
         except Exception as e:
             logger.error(f"Error in voice loop: {e}")
             await asyncio.sleep(2)

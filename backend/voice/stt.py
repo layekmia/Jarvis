@@ -65,9 +65,9 @@ class SpeechToTextEngine:
             self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
             logger.info("Listening for command...")
             try:
-                # timeout: wait maximum X seconds for speech to start
-                # phrase_time_limit: maximum length of phrase
-                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=15)
+                # timeout: seconds to wait for speech to START (longer = more patient)
+                # phrase_time_limit: max length of a single utterance
+                audio = self.recognizer.listen(source, timeout=15, phrase_time_limit=20)
                 return audio
             except sr.WaitTimeoutError:
                 logger.warning("Listening timed out. No speech detected.")
