@@ -13,9 +13,13 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 import httpx
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from loguru import logger
 
 from backend.core.config import settings
@@ -350,6 +354,7 @@ async def voice_loop() -> None:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run(
         "backend.api.main:app",

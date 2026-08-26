@@ -4,8 +4,8 @@ import pygetwindow as gw
 from loguru import logger
 import psutil
 
-# Common aliases for Windows applications
-APP_ALIASES = {
+# Aliases used for opening apps (can be executables, URIs, or URLs)
+OPEN_ALIASES = {
     "chrome": "chrome.exe",
     "google chrome": "chrome.exe",
     "notepad": "notepad.exe",
@@ -20,19 +20,55 @@ APP_ALIASES = {
     "command prompt": "cmd.exe",
     "edge": "msedge.exe",
     "microsoft edge": "msedge.exe",
+    "whatsapp": "whatsapp:",
+    "microsoft store": "ms-windows-store:",
+    "store": "ms-windows-store:",
+    "settings": "ms-settings:",
+    "spotify": "spotify:",
+    "netflix": "netflix:",
+    "youtube": "https://youtube.com",
+    "facebook": "https://facebook.com",
+    "google": "https://google.com",
+    "gmail": "https://gmail.com",
 }
+
+# Aliases used for closing apps (MUST be process names, usually ending in .exe)
+CLOSE_ALIASES = {
+    "chrome": "chrome.exe",
+    "google chrome": "chrome.exe",
+    "notepad": "notepad.exe",
+    "calculator": "CalculatorApp.exe",
+    "calc": "CalculatorApp.exe",
+    "vs code": "code.exe",
+    "vscode": "code.exe",
+    "code": "code.exe",
+    "explorer": "explorer.exe",
+    "file explorer": "explorer.exe",
+    "cmd": "cmd.exe",
+    "command prompt": "cmd.exe",
+    "edge": "msedge.exe",
+    "microsoft edge": "msedge.exe",
+    "whatsapp": "WhatsApp.Root.exe",
+    "microsoft store": "WinStore.App.exe",
+    "store": "WinStore.App.exe",
+    "settings": "SystemSettings.exe",
+    "spotify": "Spotify.exe",
+    "netflix": "Netflix.exe",
+}
+
+WEBSITES = {"youtube", "facebook", "google", "gmail"}
 
 def open_app(name: str) -> str:
     """Opens an application by name on Windows."""
     name_lower = name.lower().strip()
     
     # Check if we have an alias
-    executable = APP_ALIASES.get(name_lower, name_lower)
+    executable = OPEN_ALIASES.get(name_lower, name_lower)
     
     try:
-        # Use Windows 'start' command which resolves PATH and App Paths in registry
-        # We run it detached
-        subprocess.Popen(f"start {executable}", shell=True)
+        # Use Windows 'start' command which resolves PATH, App Paths, and URIs.
+        # Syntax 'start "" "target"' ensures spaces in target don't get treated as window titles.
+        subprocess.Popen(f'start "" "{executable}"', shell=True)
         logger.success(f"Opened application: {executable}")
         return f"Successfully opened {name}."
     except Exception as e:
@@ -42,7 +78,11 @@ def open_app(name: str) -> str:
 def close_app(name: str) -> str:
     """Closes an application gracefully using psutil."""
     name_lower = name.lower().strip()
-    executable = APP_ALIASES.get(name_lower, name_lower)
+    
+    if name_lower in WEBSITES:
+        return f"{name} is a website running in your browser. Please use 'close_browser' to close it, or close the browser tab manually."
+        
+    executable = CLOSE_ALIASES.get(name_lower, name_lower)
     
     # Ensure it ends with .exe for matching process names
     if not executable.endswith(".exe"):

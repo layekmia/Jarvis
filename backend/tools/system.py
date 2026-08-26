@@ -9,10 +9,11 @@ def set_volume(level: int) -> str:
     """Sets the system volume to a specific level (0-100)."""
     try:
         level = max(0, min(100, int(level)))
+        import comtypes
+        comtypes.CoInitialize()
+        
         devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(
-            IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        volume = devices.EndpointVolume
         
         # Pycaw uses scalar from 0.0 to 1.0 for volume
         scalar_volume = level / 100.0

@@ -9,13 +9,14 @@
  */
 import { useEffect, useCallback } from 'react';
 import { jarvisWS } from './lib/websocket';
-import { useJarvisStore } from './stores/jarvisStore';
+import { useJarvisStore, type ActiveTask } from './stores/jarvisStore';
 import { StatusBar } from './components/StatusBar';
 import { CenterBrainSection } from './components/CenterBrainSection';
 import { ConversationPanel } from './components/ConversationPanel';
 import { SystemStatusPanel } from './components/SystemStatusPanel';
 import { ActiveMemoryPanel } from './components/ActiveMemoryPanel';
 import { BrainStateControls } from './components/BrainStateControls';
+import { TaskProgressPanel } from './components/TaskProgressPanel';
 
 // Demo messages to simulate a conversation
 const DEMO_MESSAGES = [
@@ -28,7 +29,7 @@ const DEMO_MESSAGES = [
 let demoIndex = 0;
 
 function App() {
-  const { setConnected, addMessage, setMemoryEntries } = useJarvisStore();
+  const { setConnected, addMessage, setMemoryEntries, setTaskProgress } = useJarvisStore();
 
   // WebSocket connection management
   useEffect(() => {
@@ -75,6 +76,20 @@ function App() {
       }
     });
 
+    // Handle Phase 8 agentic task progress events
+    const unsubTaskProgress = jarvisWS.on('task_progress', (data: unknown) => {
+      const d = data as ActiveTask & { done?: boolean };
+      if (d) {
+        if (d.done) {
+          // Keep showing completed state briefly then clear
+          setTaskProgress({ ...d, done: true });
+          setTimeout(() => setTaskProgress(null), 4000);
+        } else {
+          setTaskProgress(d);
+        }
+      }
+    });
+
     return () => {
       unsubConnected();
       unsubDisconnected();
@@ -82,9 +97,10 @@ function App() {
       unsubBrainState();
       unsubMessage();
       unsubMemory();
+      unsubTaskProgress();
       jarvisWS.disconnect();
     };
-  }, [setConnected, addMessage, setMemoryEntries]);
+  }, [setConnected, addMessage, setMemoryEntries, setTaskProgress]);
 
   // Add demo messages for Phase 1 UI testing
   const handleAddDemoMessage = useCallback(() => {
@@ -112,9 +128,14 @@ function App() {
           </div>
         </div>
 
-        {/* CENTER COLUMN: Brain */}
-        <div className="flex flex-col items-center justify-center gap-6">
+        {/* CENTER COLUMN: Brain + Task Progress */}
+        <div className="flex flex-col items-center justify-center gap-4">
           <CenterBrainSection />
+
+          {/* Phase 8: Task Progress Panel — appears during multi-step tasks */}
+          <div className="w-full max-w-sm">
+            <TaskProgressPanel />
+          </div>
 
           {/* Dev Controls — Phase 1 only */}
           <div className="w-full max-w-xs">

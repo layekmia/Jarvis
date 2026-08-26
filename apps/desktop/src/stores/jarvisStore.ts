@@ -36,6 +36,22 @@ export interface MemoryEntry {
   timestamp: string;
 }
 
+export type TaskStepStatus = 'pending' | 'running' | 'done' | 'failed' | 'awaiting_confirmation';
+
+export interface TaskStep {
+  id: number;
+  description: string;
+  status: TaskStepStatus;
+}
+
+export interface ActiveTask {
+  total: number;
+  current: number;
+  completed: number;
+  done: boolean;
+  steps: TaskStep[];
+}
+
 // ─── Store Interface ──────────────────────────────────────────────────────────
 
 interface JarvisStore {
@@ -56,6 +72,9 @@ interface JarvisStore {
   // === Active memory ===
   memoryEntries: MemoryEntry[];
 
+  // === Phase 8: Agentic task progress ===
+  activeTask: ActiveTask | null;
+
   // === Actions ===
   setConnected: (connected: boolean, error?: string) => void;
   setBrainState: (state: JarvisBrainState, statusText?: string) => void;
@@ -64,6 +83,7 @@ interface JarvisStore {
   updateSystemStats: (stats: Partial<SystemStats>) => void;
   setMemoryEntries: (entries: MemoryEntry[]) => void;
   addMemoryEntry: (entry: Omit<MemoryEntry, 'id' | 'timestamp'>) => void;
+  setTaskProgress: (task: ActiveTask | null) => void;
 }
 
 // ─── Store Implementation ─────────────────────────────────────────────────────
@@ -85,6 +105,9 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
 
   // Start with empty memory (fetched from backend)
   memoryEntries: [],
+
+  // Phase 8: no active task initially
+  activeTask: null,
 
   // === Actions ===
   setConnected: (connected, error) =>
@@ -136,6 +159,8 @@ export const useJarvisStore = create<JarvisStore>((set) => ({
         },
       ],
     })),
+
+  setTaskProgress: (task) => set({ activeTask: task }),
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

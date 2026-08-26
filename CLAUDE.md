@@ -76,7 +76,14 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Built WebSocket event `set_memory` to sync real-time active memories to the frontend `ActiveMemoryPanel.tsx`.
   - Frontend Zustand store updated to reactively display synced memories without dummy data.
   - `scripts/test_phase7.py`: **ALL PASS**.
-- [ ] Phase 8: Agentic Multi-Step Tasks
+- [x] **Phase 8: Agentic Multi-Step Tasks** ✅
+  - Created `backend/ai/agentic_planner.py` with `AgenticPlanner` class.
+  - **Heuristic-first routing**: keyword check ("then", "তারপর", etc.) decides single vs multi before any LLM call; LLM judge used only for ambiguous cases (saves rate-limit quota).
+  - **Risky step confirmation**: `close_app`, `delete_file`, `move_file`, `rename_file` steps pause the agentic task and await user yes/no before proceeding.
+  - Real-time `task_progress` WebSocket events broadcast at every step transition.
+  - Frontend: added `TaskProgressPanel.tsx` (animated step list + progress bar) shown center-column during active tasks.
+  - `jarvisStore.ts` extended with `TaskStep`, `ActiveTask` types and `setTaskProgress()` action.
+  - `scripts/test_phase8.py`: **ALL PASS**.
 - [ ] Phase 9: Vision
 - [ ] Phase 10: Polish & Safety Hardening
 
@@ -150,13 +157,14 @@ $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_pha
 $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase1.py
 ```
 
-## 📌 Phase 8 Next Steps (Agentic Multi-Step Tasks)
+## 📌 Phase 9 Next Steps (Vision — Visual Intelligence)
 
-1. Build a multi-step task planner inside `backend/ai/`.
-2. Break down complex commands (e.g. "set up my dev environment") into a list of sequential steps.
-3. Execute each step sequentially, handling failures and retries.
-4. Add a progress tracker UI in the frontend and stream progress via WebSocket.
-5. Update `CLAUDE.md` and git commit.
+1. Take a screenshot via `take_screenshot()` tool.
+2. Send screenshot bytes to a vision-capable model (e.g. `gpt-5.6-luna` with image input).
+3. Parse the model's response to extract detected UI elements and their coordinates.
+4. Use those coordinates with `mouse_click(x, y)` via PyAutoGUI to interact with screen elements.
+5. Add a `describe_screen` tool to the schema so Jarvis can answer "what's on screen?" questions.
+6. Update `CLAUDE.md` and git commit.
 
 ## ⚠️ Known Issues / TODOs
 

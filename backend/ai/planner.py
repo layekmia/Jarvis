@@ -1,5 +1,7 @@
 import re
 import json
+import asyncio
+import inspect
 from loguru import logger
 from openai import AsyncOpenAI
 from typing import Callable, Awaitable
@@ -41,6 +43,9 @@ from backend.tools.browser.browser_tools import (
 from backend.tools.memory.memory_tools import remember, forget
 from backend.memory.db import get_all_memories
 
+# Phase 8 - Agentic multi-step planner
+from backend.ai.agentic_planner import AgenticPlanner
+
 # Map tool names to actual python functions
 TOOL_MAP = {
     # Phase 4
@@ -75,6 +80,15 @@ TOOL_MAP = {
     # Phase 7
     "remember": remember,
     "forget": forget,
+}
+
+# Tools that should execute silently in the background without voice narration
+SILENT_TOOLS = {
+    "remember",
+    "forget",
+    "get_system_info",
+    "list_directory",
+    "read_file_summary"
 }
 
 SYSTEM_PROMPT = """
@@ -139,6 +153,9 @@ class AIBrain:
         
         # Short-term conversation buffer (list of dict messages)
         self.conversation_history: list[dict] = []
+        
+        # Phase 8: Agentic planner instance (singleton per AIBrain)
+        self.agentic_planner = AgenticPlanner()
 
     async def _call_llm(self, model: str, messages: list) -> dict:
         """Helper to call OpenAI with a specific model and return the response."""
@@ -163,9 +180,24 @@ class AIBrain:
         Process the user's text, extract intent, and execute tools dynamically.
         Handles confirmation flow for destructive file operations.
         Implements fallback to Terra if Luna fails.
+        Delegates to AgenticPlanner for detected multi-step tasks.
         """
-        # ── Check if this message is a reply to a pending confirmation ────────
         text_lower = text.lower().strip()
+
+        # ── Check if resuming an agentic task after a risky step confirmation ──
+        if self.agentic_planner._awaiting_confirmation:
+            confirmed = any(w in text_lower for w in ["yes", "confirm", "ok", "হ্যাঁ", "হ", "করো", "do it"])
+            denied = any(w in text_lower for w in ["no", "cancel", "stop", "না", "বাদ দাও", "don't", "skip"])
+            if confirmed or denied:
+                return await self.agentic_planner.resume_after_confirmation(
+                    confirmed=confirmed,
+                    tool_map=TOOL_MAP,
+                    tts_engine=tts_engine,
+                    player=player,
+                    broadcast_callback=broadcast_callback,
+                )
+
+        # ── Check if this message is a reply to a pending single-step confirmation ─
         if self._pending_confirmation:
             confirmed = any(w in text_lower for w in ["yes", "confirm", "ok", "হ্যাঁ", "হ", "করো", "do it"])
             denied = any(w in text_lower for w in ["no", "cancel", "stop", "না", "বাদ দাও", "don't"])
@@ -177,6 +209,37 @@ class AIBrain:
                     player=player,
                     broadcast_callback=broadcast_callback,
                 )
+
+        # ── Phase 8: Multi-step detection (heuristic-first, LLM judge as fallback) ─
+        heuristic_result = AgenticPlanner.is_multi_step(text)
+        if heuristic_result is None:
+            # Ambiguous — use one LLM judge call
+            heuristic_result = await self.agentic_planner.judge_multi_step(text)
+
+        if heuristic_result:
+            logger.info("[Agentic] Multi-step task detected — delegating to AgenticPlanner.")
+            if broadcast_callback:
+                await broadcast_callback("brain_state", {"state": "thinking"})
+            steps = await self.agentic_planner.plan(text)
+            if steps:
+                result = await self.agentic_planner.run(
+                    task=text,
+                    steps=steps,
+                    tool_map=TOOL_MAP,
+                    tts_engine=tts_engine,
+                    player=player,
+                    broadcast_callback=broadcast_callback,
+                )
+                # Save to conversation history
+                self.conversation_history.append({"role": "user", "content": text})
+                self.conversation_history.append({"role": "assistant", "content": result})
+                if len(self.conversation_history) > 16:
+                    self.conversation_history = self.conversation_history[-16:]
+                if result.startswith("__AGENTIC_AWAITING_CONFIRM__"):
+                    # Risky step paused — return nothing (confirmation narrated already)
+                    return ""
+                return result
+            # If planning returned no steps, fall through to normal single-step flow
 
         # ── 1. Fetch Explicit Memories ─────────────────────────────────────────
         memories = get_all_memories()
@@ -256,7 +319,11 @@ class AIBrain:
             logger.info(f"🛠️ Executing confirmed action: {func_name} with {args}")
             if broadcast_callback:
                 await broadcast_callback("brain_state", {"state": "executing"})
-            result = func(**args)
+            tool_func = func
+            if inspect.iscoroutinefunction(tool_func):
+                result = await tool_func(**args)
+            else:
+                result = await asyncio.to_thread(tool_func, **args)
             logger.success(f"Confirmed action completed: {result}")
             return result
         except Exception as e:
@@ -285,21 +352,30 @@ class AIBrain:
 
                 logger.success(f"🛠️ AI deciding to call tool: {func_name} with args: {args}")
 
+                is_silent = func_name in SILENT_TOOLS
+
                 # --- Step-by-Step Narration ---
-                start_phrase = self._get_start_phrase(func_name, args)
-                if tts_engine and player:
-                    if broadcast_callback:
-                        await broadcast_callback("brain_state", {"state": "speaking"})
-                    audio = await tts_engine.generate_speech(start_phrase)
-                    await player.play_audio_async(audio)
-                    if broadcast_callback:
-                        await broadcast_callback("brain_state", {"state": "thinking"})
+                if not is_silent:
+                    start_phrase = self._get_start_phrase(func_name, args)
+                    if tts_engine and player:
+                        if broadcast_callback:
+                            await broadcast_callback("brain_state", {"state": "speaking"})
+                        audio = await tts_engine.generate_speech(start_phrase)
+                        await player.play_audio_async(audio)
+                        if broadcast_callback:
+                            await broadcast_callback("brain_state", {"state": "thinking"})
 
                 # --- Execute Tool ---
                 result_str = "Error: Tool not found."
                 if func_name in TOOL_MAP:
                     try:
-                        result_str = TOOL_MAP[func_name](**args)
+                        tool_func = TOOL_MAP[func_name]
+                        # If the tool is a native coroutine (async), await it directly.
+                        # Otherwise, run it in a thread to avoid blocking the event loop.
+                        if inspect.iscoroutinefunction(tool_func):
+                            result_str = await tool_func(**args)
+                        else:
+                            result_str = await asyncio.to_thread(tool_func, **args)
                     except Exception as e:
                         result_str = f"Error executing tool: {e}"
                         logger.error(result_str)
@@ -330,14 +406,15 @@ class AIBrain:
                 })
 
                 # --- Completion Narration ---
-                if tts_engine and player:
-                    done_phrase = "Done."
-                    if broadcast_callback:
-                        await broadcast_callback("brain_state", {"state": "speaking"})
-                    audio = await tts_engine.generate_speech(done_phrase)
-                    await player.play_audio_async(audio)
-                    if broadcast_callback:
-                        await broadcast_callback("brain_state", {"state": "thinking"})
+                if not is_silent:
+                    if tts_engine and player:
+                        done_phrase = "Done."
+                        if broadcast_callback:
+                            await broadcast_callback("brain_state", {"state": "speaking"})
+                        audio = await tts_engine.generate_speech(done_phrase)
+                        await player.play_audio_async(audio)
+                        if broadcast_callback:
+                            await broadcast_callback("brain_state", {"state": "thinking"})
 
             # After all tools are executed, get final response from LLM
             final_response = await self._call_llm(self.default_model, messages)
