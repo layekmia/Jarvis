@@ -35,8 +35,7 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - Wake word → Listening state → STT → TTS pipeline running seamlessly in `backend/api/main.py`
   - Voice pipeline syncs perfectly with React UI states (`Listening`, `Thinking`, `Speaking`) via WebSocket.
   - **Modification**: As per user request, Phase 2 bypasses AI reasoning and translation, directly echoing STT transcripts to TTS.
-  - **Update**: STT language lock (`language="bn"`) removed — now handles Bangladeshi accent, Bangla, Banglish, and mixed-language input via prompt-guided `gpt-4o-transcribe`.
-  - **Update**: Cinematic wake greeting added — when "Hey Jarvis" is detected, Jarvis instantly says _"Yes, sir. I'm online and ready. How can I assist you today?"_ before listening.
+  - **Update**: Cinematic wake greeting updated — when "Hey Jarvis" is detected, Jarvis instantly says _"Yes sir, All systems are fully initialized and operating at peak performance. How may I assist you today, sir?"_ before listening.
 
 - [x] **Phase 3: AI Brain (Intent Understanding + Planning)** ✅
   - Integrated `AIBrain` for intent routing (Luna default, Terra fallback).
@@ -93,6 +92,31 @@ JARVIS is a full-featured AI desktop assistant built with Tauri (desktop shell),
   - `shutdown_system` and `restart_system` tools added to `system.py`.
   - Safety Hardening: Shutdown and Restart added to `RISKY_TOOLS` requiring user confirmation.
   - UI Polish: Added `SettingsPanel` (Wake Word, Voice ID, Language prefs) and `LogsPanel` to view `systemLogs` history.
+
+- [x] **Phase 11: Continuous Conversation Context + Persistent Browser State** ✅
+  - Created `backend/memory/conversation_db.py` — SQLite-backed conversation history (completely separate from long-term `memories` table).
+    - `conversations` table stores every raw user/assistant turn with `session_id` + timestamp.
+    - `conv_summaries` table stores compressed summaries of older turns.
+    - `browser_state` KV table for lightweight browser context persistence.
+  - **Sliding window**: Last 20 raw turns sent to LLM (not full history) — zero extra API cost for storage.
+  - **Auto-compression**: When raw turns exceed 30, older turns are summarised into 2-3 sentences via a cheap 150-token Luna call, raw rows deleted. Summary is injected as `[PRIOR CONVERSATION SUMMARY]` system message.
+  - `AIBrain` in `planner.py` refactored:
+    - `self.conversation_history` (in-memory list) **removed** — DB is now the single source of truth.
+    - `self._session_id` (UUID4 per app run) + `self._window_size = 20` + `self._compress_threshold = 30` added.
+    - New `_get_context_messages(system_prompt)` assembles `[system] + [summary?] + [last N raw turns]`.
+    - New `_maybe_compress_history()` triggers summarisation opportunistically after each turn.
+    - All three code paths (agentic, Luna, Terra fallback) now persist turns via `append_turn()`.
+    - History survives backend restarts — context carries over between sessions.
+  - `browser_tools.py` refactored for robust persistence:
+    - `_browser_alive()` / `_page_alive()` health helpers detect manual close / crashes.
+    - `get_page()` transparently relaunches browser if manually closed (no error thrown).
+    - `open_url()` now navigates the **existing tab** via `page.goto()` by default — no spurious new windows.
+    - `open_url(new_tab=True)` opens an explicit new tab (user says "new tab" / "new window").
+    - `_safe_get_page()` wrapper adds one auto-retry on stale-handle errors.
+  - `main.py` startup calls `init_conversation_db()` alongside `init_db()`.
+  - `test_phase3.py` updated to call `init_db()` + `init_conversation_db()` before tests (bypass startup_event).
+  - `test_phase6.py` rewritten with `asyncio.run()` wrapper + 2 new tab-reuse test cases.
+  - **test_phase3.py**: ALL PASS | **test_phase6.py**: 8/8 PASS
 
 ## 📂 Project Structure
 

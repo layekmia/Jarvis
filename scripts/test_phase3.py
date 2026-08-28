@@ -8,9 +8,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.ai.planner import AIBrain
 from backend.memory.guard import RateLimitGuard
+from backend.memory.db import init_db
+from backend.memory.conversation_db import init_conversation_db
 
 async def main():
     logger.info("Initializing Phase 3 Test (AI Brain + Guard)...")
+    # Ensure DB tables exist (normally done by startup_event in main.py)
+    init_db()
+    init_conversation_db()
     
     guard = RateLimitGuard()
     brain = AIBrain()

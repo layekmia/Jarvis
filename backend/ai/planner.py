@@ -1,5 +1,6 @@
 import re
 import json
+import uuid
 import asyncio
 import inspect
 from loguru import logger
@@ -7,6 +8,13 @@ from openai import AsyncOpenAI
 from typing import Callable, Awaitable
 from backend.core.config import settings
 from backend.planner.schema import TOOLS_SCHEMA
+from backend.memory.conversation_db import (
+    append_turn,
+    get_recent_turns,
+    get_latest_summary,
+    get_turn_count,
+    save_summary,
+)
 
 # Phase 4 - Computer Control tools
 from backend.tools.system import (
@@ -35,7 +43,9 @@ from backend.tools.files.file_tools import (
 
 # Phase 6 - Browser Automation tools
 from backend.tools.browser.browser_tools import (
+    open_browser,
     open_url,
+    open_new_tab,
     search_web,
     youtube_search,
     fill_form,
@@ -84,7 +94,9 @@ TOOL_MAP = {
     "delete_file_confirmed": delete_file_confirmed,
     "list_directory": list_directory,
     # Phase 6
+    "open_browser": open_browser,
     "open_url": open_url,
+    "open_new_tab": open_new_tab,
     "search_web": search_web,
     "youtube_search": youtube_search_chrome,   # Chrome-based, uses correct profile
     "youtube_play": youtube_play,
@@ -182,6 +194,42 @@ def _parse_confirm_payload(result_str: str) -> dict[str, str]:
     return payload
 
 
+def _clean_url_for_speech(raw_url: str) -> str:
+    """Extracts a clean, pronounceable name from a URL instead of reading raw https/slashes."""
+    if not raw_url:
+        return "the website"
+    try:
+        import urllib.parse
+        u = raw_url if "://" in raw_url else "http://" + raw_url
+        parsed = urllib.parse.urlparse(u)
+        domain = parsed.netloc or parsed.path
+        domain = domain.lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        parts = domain.split(".")
+        if len(parts) >= 2 and parts[0]:
+            name = parts[0]
+            special_names = {
+                "chatgpt": "ChatGPT",
+                "openai": "OpenAI",
+                "youtube": "YouTube",
+                "github": "GitHub",
+                "google": "Google",
+                "facebook": "Facebook",
+                "twitter": "Twitter",
+                "x": "X",
+                "instagram": "Instagram",
+                "linkedin": "LinkedIn",
+                "reddit": "Reddit",
+                "netflix": "Netflix",
+                "spotify": "Spotify",
+            }
+            return special_names.get(name, name.capitalize())
+        return domain.capitalize() if domain else "the website"
+    except Exception:
+        return "the website"
+
+
 class AIBrain:
     def __init__(self) -> None:
         self.client = AsyncOpenAI(
@@ -193,10 +241,20 @@ class AIBrain:
 
         # Pending confirmations: maps a pending action key -> (func_name, args)
         self._pending_confirmation: dict[str, tuple[str, dict]] = {}
-        
-        # Short-term conversation buffer (list of dict messages)
-        self.conversation_history: list[dict] = []
-        
+
+        # Persistent conversation — DB-backed sliding window.
+        # session_id groups turns from the current app run so we can
+        # display "this session" vs historical turns if needed in the future.
+        self._session_id: str = str(uuid.uuid4())
+
+        # How many raw turns (user+assistant each count as 1) to keep in the
+        # LLM context window.  20 = ~10 back-and-forth exchanges.
+        self._window_size: int = 20
+
+        # When total raw turns in DB exceed this number, compress the older
+        # half into a summary to avoid unbounded DB growth.
+        self._compress_threshold: int = 30
+
         # Phase 8: Agentic planner instance (singleton per AIBrain)
         self.agentic_planner = AgenticPlanner()
 
@@ -211,6 +269,88 @@ class AIBrain:
             extra_body={"reasoning_effort": "none"}
         )
         return response
+
+    async def _maybe_compress_history(self) -> None:
+        """
+        If total raw turns exceed _compress_threshold, summarise the older
+        portion with a cheap LLM call and delete those raw rows from the DB.
+        Keeps DB lean without losing conversational context.
+        """
+        total = get_turn_count()
+        if total <= self._compress_threshold:
+            return
+
+        # Fetch all raw turns — we'll compress the older half
+        all_turns = get_recent_turns(n=total)
+        keep_count = self._window_size  # keep the freshest N turns raw
+        to_compress = all_turns[:-keep_count] if len(all_turns) > keep_count else []
+
+        if not to_compress:
+            return
+
+        # Build a mini-transcript for the summariser
+        transcript = "\n".join(
+            f"{t['role'].upper()}: {t['content']}" for t in to_compress
+        )
+        existing_summary = get_latest_summary()
+        prior_context = (
+            f"Previous summary: {existing_summary}\n\n" if existing_summary else ""
+        )
+
+        summarise_prompt = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a memory assistant. Summarise the following "
+                    "conversation transcript into 2-3 concise sentences that "
+                    "capture the key facts, user requests, and outcomes. "
+                    "Be factual and dense — this will be injected as context."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"{prior_context}Transcript to summarise:\n{transcript}",
+            },
+        ]
+
+        try:
+            resp = await self.client.chat.completions.create(
+                model=self.default_model,
+                messages=summarise_prompt,
+                max_completion_tokens=150,
+                extra_body={"reasoning_effort": "none"},
+            )
+            summary_text = resp.choices[0].message.content.strip()
+            # covers_up_to_id is the DB id of the last row we compressed
+            covers_up_to_id = to_compress[-1]["id"]
+            save_summary(summary_text, covers_up_to_id)
+            logger.info(f"💬 History compressed. Summary: {summary_text[:80]}...")
+        except Exception as exc:
+            logger.warning(f"⚠️  History compression failed (non-fatal): {exc}")
+
+    def _get_context_messages(self, system_prompt: str) -> list[dict]:
+        """
+        Assemble the message list to send to the LLM:
+          [system_prompt]
+          + [optional: prior summary as a system note]
+          + [last _window_size raw turns from DB]
+        """
+        messages: list[dict] = [{"role": "system", "content": system_prompt}]
+
+        # Inject summary (if any) so the LLM knows what happened before the window
+        summary = get_latest_summary()
+        if summary:
+            messages.append({
+                "role": "system",
+                "content": f"[PRIOR CONVERSATION SUMMARY]\n{summary}",
+            })
+
+        # Append the sliding window of raw turns
+        recent = get_recent_turns(n=self._window_size)
+        for turn in recent:
+            messages.append({"role": turn["role"], "content": turn["content"]})
+
+        return messages
 
     async def process_intent(
         self,
@@ -253,6 +393,23 @@ class AIBrain:
                     broadcast_callback=broadcast_callback,
                 )
 
+        # ── Check for Introduction / Identity questions ─────────────────────────
+        intro_triggers = [
+            "who are you", "who r u", "introduce yourself", "tell me about yourself",
+            "who made you", "who created you", "tumi ke", "tomar porichoy", "তোমার পরিচয়",
+            "তোমার পরিচয়"
+        ]
+        if any(trigger in text_lower for trigger in intro_triggers):
+            intro_speech = (
+                "Allow me to introduce myself. I am JARVIS, a personal artificial intelligence "
+                "assistant designed by Layek to manage your workspace and digital operations. "
+                "All systems are fully initialized and operating at peak performance. "
+                "How may I assist you today, sir?"
+            )
+            append_turn(self._session_id, "user", text)
+            append_turn(self._session_id, "assistant", intro_speech)
+            return intro_speech
+
         # ── Phase 8: Multi-step detection (heuristic-first, LLM judge as fallback) ─
         heuristic_result = AgenticPlanner.is_multi_step(text)
         if heuristic_result is None:
@@ -273,11 +430,10 @@ class AIBrain:
                     player=player,
                     broadcast_callback=broadcast_callback,
                 )
-                # Save to conversation history
-                self.conversation_history.append({"role": "user", "content": text})
-                self.conversation_history.append({"role": "assistant", "content": result})
-                if len(self.conversation_history) > 16:
-                    self.conversation_history = self.conversation_history[-16:]
+                # Persist to conversation DB
+                append_turn(self._session_id, "user", text)
+                append_turn(self._session_id, "assistant", result)
+                await self._maybe_compress_history()
                 if result.startswith("__AGENTIC_AWAITING_CONFIRM__"):
                     # Risky step paused — return nothing (confirmation narrated already)
                     return ""
@@ -294,9 +450,10 @@ class AIBrain:
 
         dynamic_system_prompt = SYSTEM_PROMPT + memory_context
 
-        # ── 2. Assemble Messages with Short-Term History ───────────────────────
-        messages = [{"role": "system", "content": dynamic_system_prompt}]
-        messages.extend(self.conversation_history)
+        # ── 2. Assemble Messages — DB-backed sliding window ────────────────────
+        # _get_context_messages() returns [system] + [summary?] + [last N raw turns]
+        # We then append the current user turn at the end.
+        messages = self._get_context_messages(dynamic_system_prompt)
         messages.append({"role": "user", "content": text})
 
         try:
@@ -308,15 +465,13 @@ class AIBrain:
                 raise ValueError("Ambiguous empty response from Luna")
 
             final_response_text = await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
-            
-            # Save to conversation history (user + final AI response)
-            self.conversation_history.append({"role": "user", "content": text})
-            self.conversation_history.append({"role": "assistant", "content": final_response_text})
-            
-            # Keep only the last 16 turns (8 user-assistant pairs)
-            if len(self.conversation_history) > 16:
-                self.conversation_history = self.conversation_history[-16:]
-                
+
+            # Persist to conversation DB (both sides of the exchange)
+            append_turn(self._session_id, "user", text)
+            append_turn(self._session_id, "assistant", final_response_text)
+            # Opportunistically compress old history (cheap, non-blocking)
+            await self._maybe_compress_history()
+
             return final_response_text
 
         except Exception as e:
@@ -325,13 +480,12 @@ class AIBrain:
                 response = await self._call_llm(self.fallback_model, messages)
                 message = response.choices[0].message
                 final_response_text = await self._handle_message(message, messages, tts_engine, player, broadcast_callback)
-                
-                # Save to conversation history
-                self.conversation_history.append({"role": "user", "content": text})
-                self.conversation_history.append({"role": "assistant", "content": final_response_text})
-                if len(self.conversation_history) > 16:
-                    self.conversation_history = self.conversation_history[-16:]
-                    
+
+                # Persist to conversation DB
+                append_turn(self._session_id, "user", text)
+                append_turn(self._session_id, "assistant", final_response_text)
+                await self._maybe_compress_history()
+
                 return final_response_text
             except Exception as e2:
                 logger.error(f"❌ Terra fallback also failed: {e2}")
@@ -448,39 +602,28 @@ class AIBrain:
                     "content": result_str
                 })
 
-                # --- Completion Narration ---
-                if not is_silent:
-                    if tts_engine and player:
-                        done_phrase = "Done."
-                        if broadcast_callback:
-                            await broadcast_callback("brain_state", {"state": "speaking"})
-                        audio = await tts_engine.generate_speech(done_phrase)
-                        await player.play_audio_async(audio)
-                        if broadcast_callback:
-                            await broadcast_callback("brain_state", {"state": "thinking"})
-
             # After all tools are executed, get final response from LLM
             final_response = await self._call_llm(self.default_model, messages)
             final_message = final_response.choices[0].message
-            return final_message.content or "Task completed, sir."
+            return final_message.content or "Done, boss."
 
         else:
             return message.content or "I didn't quite catch that. Could you say that again?"
 
     def _get_start_phrase(self, func_name: str, args: dict) -> str:
-        """Returns a short, natural, bilingual start phrase for a tool."""
+        """Returns a short, natural, clean start phrase for a tool."""
         if func_name == "open_app":
-            return f"Opening {args.get('name', 'app')}, sir."
+            return f"Opening {args.get('name', 'app')}..."
         elif func_name == "close_app":
-            return f"বন্ধ করছি {args.get('name', 'app')}."
+            return f"Closing {args.get('name', 'app')}..."
         elif func_name == "switch_app":
-            return f"Switching to {args.get('name', 'the app')}."
+            return f"Switching to {args.get('name', 'the app')}..."
         elif func_name == "set_volume":
-            return "Adjusting volume."
+            return "Adjusting volume..."
         elif func_name == "type_text":
-            return "লিখছি..."
+            return "Typing..."
         elif func_name == "take_screenshot":
-            return "Taking a screenshot."
+            return "Taking a screenshot..."
         elif func_name == "search_file":
             return f"Searching for '{args.get('query', 'files')}'..."
         elif func_name == "create_file":
@@ -497,12 +640,22 @@ class AIBrain:
             return "Checking before deletion..."
         elif func_name == "list_directory":
             return "Listing directory contents..."
+        elif func_name == "open_browser":
+            return "Opening browser..."
         elif func_name == "open_url":
-            return "Opening the website..."
+            site_name = _clean_url_for_speech(args.get('url', ''))
+            return f"Opening {site_name}..."
+        elif func_name == "open_new_tab":
+            site_name = _clean_url_for_speech(args.get('url', ''))
+            return f"Opening {site_name} in a new tab..." if site_name != "the website" else "Opening a new tab..."
         elif func_name == "search_web":
             return "Searching the web..."
         elif func_name == "youtube_search":
             return "Searching YouTube..."
+        elif func_name == "youtube_play":
+            return f"Playing {args.get('query', 'video')} on YouTube..."
+        elif func_name == "youtube_open":
+            return "Opening YouTube..."
         elif func_name == "fill_form":
             return "Filling the form..."
         elif func_name == "switch_tab":
@@ -510,4 +663,5 @@ class AIBrain:
         elif func_name == "close_browser":
             return "Closing the browser..."
         else:
-            return "Executing task."
+            return "Executing task..."
+

@@ -1,13 +1,13 @@
 """
 Phase 6 — Browser Automation Tools: Sanity Check
 
-Tests the Playwright browser tools directly.
+Tests the Playwright browser tools directly (all tools are async).
 Run:
     $env:PYTHONIOENCODING="utf-8"; backend\.venv\Scripts\python.exe scripts\test_phase6.py
 """
 
 import sys
-import time
+import asyncio
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -45,73 +45,107 @@ try:
         search_web,
         youtube_search,
         switch_tab,
-        close_browser
+        close_browser,
     )
     ok("Imported all Phase 6 browser tools successfully")
 except ImportError as e:
     fail("Import failed", str(e))
     sys.exit(1)
 
-# ── Test: open_url ─────────────────────────────────────────────────────────────
-section("open_url")
-print("This should open a browser window and go to example.com...")
-result = open_url("example.com")
-if "Successfully opened" in result:
-    ok(f"open_url: {result}")
-else:
-    fail("open_url returned unexpected result", result)
 
-time.sleep(2)
+# ── Async test runner ──────────────────────────────────────────────────────────
 
-# ── Test: search_web ───────────────────────────────────────────────────────────
-section("search_web")
-print("This should navigate to Google and search for 'OpenAI'...")
-result = search_web("OpenAI")
-if "Successfully searched" in result:
-    ok(f"search_web: {result}")
-else:
-    fail("search_web returned unexpected result", result)
+async def run_tests() -> None:
+    # ── Test: open_url ─────────────────────────────────────────────────────────
+    section("open_url")
+    print("This should open a browser window and navigate to example.com...")
+    result = await open_url("example.com")
+    if "Successfully opened" in result:
+        ok(f"open_url: {result}")
+    else:
+        fail("open_url returned unexpected result", result)
 
-time.sleep(2)
+    await asyncio.sleep(2)
 
-# ── Test: youtube_search ───────────────────────────────────────────────────────
-section("youtube_search")
-print("This should open a NEW tab (via playwright if we designed it that way... wait we didn't)")
-print("It will just navigate the current tab to YouTube.")
-result = youtube_search("Rick Astley Never Gonna Give You Up")
-if "Successfully searched" in result:
-    ok(f"youtube_search: {result}")
-else:
-    fail("youtube_search returned unexpected result", result)
+    # ── Test: open_url reuses existing tab ─────────────────────────────────────
+    section("open_url — reuse existing tab (no new browser window)")
+    print("This should navigate the SAME tab to python.org, not open a new browser...")
+    result = await open_url("https://www.python.org")
+    if "Successfully opened" in result:
+        ok(f"open_url reuse: {result}")
+    else:
+        fail("open_url reuse failed", result)
 
-time.sleep(2)
+    await asyncio.sleep(2)
 
-# ── Test: switch_tab ───────────────────────────────────────────────────────────
-section("switch_tab")
-# We only have 1 tab right now because we reused it. Let's try switching to index 0
-result = switch_tab(0)
-if "Switched to tab" in result:
-    ok(f"switch_tab: {result}")
-else:
-    fail("switch_tab failed", result)
+    # ── Test: open_url new_tab ─────────────────────────────────────────────────
+    section("open_url — new_tab=True opens a new tab")
+    print("This should open GitHub in a NEW browser tab...")
+    result = await open_url("https://github.com", new_tab=True)
+    if "Successfully opened" in result:
+        ok(f"open_url new_tab: {result}")
+    else:
+        fail("open_url new_tab failed", result)
 
-# ── Cleanup ────────────────────────────────────────────────────────────────────
-section("Cleanup")
-print("Closing browser...")
-result = close_browser()
-if "Successfully closed" in result:
-    ok("Browser closed.")
-else:
-    fail("close_browser failed", result)
+    await asyncio.sleep(2)
 
-# ── Summary ────────────────────────────────────────────────────────────────────
-print(f"\n{'═' * 60}")
-total = passed + failed
-print(f"  Results: {GREEN}{passed} passed{RESET}, {RED}{failed} failed{RESET} / {total} total")
-print(f"{'═' * 60}\n")
+    # ── Test: search_web ───────────────────────────────────────────────────────
+    section("search_web")
+    print("This should navigate to Google and search for 'OpenAI'...")
+    result = await search_web("OpenAI")
+    if "Successfully searched" in result:
+        ok(f"search_web: {result}")
+    else:
+        fail("search_web returned unexpected result", result)
 
-if failed > 0:
-    sys.exit(1)
-else:
-    print(f"{GREEN}  🎉 All Phase 6 tests passed!{RESET}\n")
-    sys.exit(0)
+    await asyncio.sleep(2)
+
+    # ── Test: youtube_search ───────────────────────────────────────────────────
+    section("youtube_search")
+    print("This should navigate the current tab to YouTube and search...")
+    result = await youtube_search("Rick Astley Never Gonna Give You Up")
+    if "Successfully searched" in result:
+        ok(f"youtube_search: {result}")
+    else:
+        fail("youtube_search returned unexpected result", result)
+
+    await asyncio.sleep(2)
+
+    # ── Test: switch_tab ───────────────────────────────────────────────────────
+    section("switch_tab")
+    result = await switch_tab(0)
+    if "Switched to tab" in result:
+        ok(f"switch_tab: {result}")
+    else:
+        fail("switch_tab failed", result)
+
+    # ── Cleanup ────────────────────────────────────────────────────────────────
+    section("Cleanup")
+    print("Closing browser...")
+    result = await close_browser()
+    if "Successfully closed" in result:
+        ok("Browser closed.")
+    else:
+        fail("close_browser failed", result)
+
+
+# ── Entry point ────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    # Windows requires ProactorEventLoop for Playwright subprocess spawning
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    asyncio.run(run_tests())
+
+    # ── Summary ────────────────────────────────────────────────────────────────
+    print(f"\n{'═' * 60}")
+    total = passed + failed
+    print(f"  Results: {GREEN}{passed} passed{RESET}, {RED}{failed} failed{RESET} / {total} total")
+    print(f"{'═' * 60}\n")
+
+    if failed > 0:
+        sys.exit(1)
+    else:
+        print(f"{GREEN}  🎉 All Phase 6 tests passed!{RESET}\n")
+        sys.exit(0)

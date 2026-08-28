@@ -11,27 +11,21 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
         "function": {
             "name": "open_app",
             "description": (
-                "Opens an application on the user's Windows computer by its name. "
-                "For Chrome or Edge, also accepts an optional 'profile' argument to open "
-                "a specific browser profile (e.g. 'Layek', 'Rasel'). "
-                "If 'profile' is omitted, the last-used profile is used automatically — "
-                "no profile picker will appear."
+                "Opens a desktop application on the user's Windows computer by its name. "
+                "Use for apps like notepad, calculator, VS Code, Spotify, WhatsApp, Settings, etc. "
+                "Do NOT use this for Chrome, Edge, or any browser — use 'open_browser' for that. "
+                "Do NOT use this for websites or URLs — use 'open_url' for that."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "The name of the application to open (e.g., 'notepad', 'chrome', 'calculator')."
+                        "description": "The name of the desktop application to open (e.g., 'notepad', 'calculator', 'spotify')."
                     },
-                    "profile": {
-                        "type": "string",
-                        "description": (
-                            "Optional. For Chrome or Edge only. "
-                            "The display name of the browser profile to open "
-                            "(e.g. 'Layek', 'Rasel', 'Entertop'). "
-                            "Omit this if the user did not specify a profile."
-                        )
+                    "new_window": {
+                        "type": "boolean",
+                        "description": "Optional. Set to true ONLY if the user explicitly asks to open a 'new window' or 'another window' of the application."
                     }
                 },
                 "required": ["name"],
@@ -371,14 +365,64 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "open_browser",
+            "description": (
+                "Opens the Jarvis browser window (or focuses it if already open). "
+                "Use this when the user says 'open chrome', 'open browser', 'chrome kholo', "
+                "'open edge', 'browser open koro', etc. "
+                "This is the ONLY way to open the browser — do NOT use open_app for Chrome/Edge."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "browser_name": {
+                        "type": "string",
+                        "description": "The browser to open: 'chrome' or 'edge'. Defaults to 'chrome'."
+                    }
+                },
+                "required": [],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "open_url",
-            "description": "Opens a given URL in the web browser.",
+            "description": (
+                "Navigates to a website URL in the CURRENT browser tab (same browser window). "
+                "Use this when the user says 'open [website]', '[website]-e jao', 'go to [url]', "
+                "'ei browser-e [website] kholo', etc. "
+                "This uses the SAME browser window — does NOT open a new browser window. "
+                "For a NEW tab, use open_new_tab instead. "
+                "Do NOT use this for searches — use search_web or youtube_search instead."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "The URL to open, e.g. 'https://example.com'."
+                        "description": "The full URL to navigate to, e.g. 'https://chatgpt.com' or 'https://github.com'."
+                    }
+                },
+                "required": ["url"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_new_tab",
+            "description": (
+                "Opens a NEW tab in the SAME browser window and navigates to the URL. "
+                "Use ONLY when the user explicitly says 'new tab-e kholo', 'notun tab', "
+                "'open in a new tab', 'new tab e jao', etc."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to open in the new tab."
                     }
                 },
                 "required": ["url"],

@@ -40,6 +40,7 @@ from backend.voice.tts import TextToSpeechEngine
 from backend.voice.audio_player import AudioPlayer
 from backend.memory.guard import RateLimitGuard, RateLimitExceeded
 from backend.memory.db import init_db, get_all_memories
+from backend.memory.conversation_db import init_conversation_db
 from backend.ai.planner import AIBrain
 
 # ── App setup ────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ async def startup_event() -> None:
     """Runs on server start. Validates OpenAI API key."""
     logger.info("🚀 Jarvis backend starting...")
     init_db()
+    init_conversation_db()
     await validate_openai_key()
     
     # Start voice engine loop in the background
@@ -275,7 +277,7 @@ async def voice_loop() -> None:
             
             # 2a. Play cinematic wake greeting (Speaking state briefly)
             await broadcast_event("brain_state", {"state": "speaking"})
-            greeting = "Welcome back boss. All systems are functioning within normal parameters. How can I assist you today?"
+            greeting = "Yes sir, All systems are fully initialized and operating at peak performance. How may I assist you today, sir?"
             greeting_audio = await tts_engine.generate_speech(greeting)
             await player.play_audio_async(greeting_audio)
             logger.info(f"Played wake greeting: '{greeting}'")

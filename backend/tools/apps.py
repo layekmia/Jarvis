@@ -18,8 +18,6 @@ except ImportError:
 #   "__CHROME__"  -> handled by _open_chrome_with_profile()
 #   "__EDGE__"    -> handled by _open_edge_with_profile()
 OPEN_ALIASES = {
-    "chrome": "__CHROME__",
-    "google chrome": "__CHROME__",
     "notepad": "notepad.exe",
     "calculator": "calc.exe",
     "calc": "calc.exe",
@@ -30,24 +28,19 @@ OPEN_ALIASES = {
     "file explorer": "explorer.exe",
     "cmd": "cmd.exe",
     "command prompt": "cmd.exe",
-    "edge": "__EDGE__",
-    "microsoft edge": "__EDGE__",
     "whatsapp": "whatsapp:",
     "microsoft store": "ms-windows-store:",
     "store": "ms-windows-store:",
     "settings": "ms-settings:",
     "spotify": "spotify:",
     "netflix": "netflix:",
-    "youtube": "https://youtube.com",
-    "facebook": "https://facebook.com",
-    "google": "https://google.com",
-    "gmail": "https://gmail.com",
+    # NOTE: Chrome, Edge, YouTube, Facebook, Google are intentionally NOT here.
+    # Browser operations (open Chrome, open websites) are handled by the
+    # open_browser / open_url tools in browser_tools.py via Playwright.
 }
 
 # Aliases used for closing apps (MUST be process names, usually ending in .exe)
 CLOSE_ALIASES = {
-    "chrome": "chrome.exe",
-    "google chrome": "chrome.exe",
     "notepad": "notepad.exe",
     "calculator": "CalculatorApp.exe",
     "calc": "CalculatorApp.exe",
@@ -58,8 +51,6 @@ CLOSE_ALIASES = {
     "file explorer": "explorer.exe",
     "cmd": "cmd.exe",
     "command prompt": "cmd.exe",
-    "edge": "msedge.exe",
-    "microsoft edge": "msedge.exe",
     "whatsapp": "WhatsApp.Root.exe",
     "microsoft store": "WinStore.App.exe",
     "store": "WinStore.App.exe",
@@ -309,7 +300,7 @@ def _open_edge_with_profile(profile_hint: str | None = None) -> str:
 
 # ── Tool Functions ─────────────────────────────────────────────────────────────
 
-def open_app(name: str, profile: str | None = None) -> str:
+def open_app(name: str, profile: str | None = None, new_window: bool = False) -> str:
     """
     Opens an application by name on Windows.
 
@@ -317,19 +308,33 @@ def open_app(name: str, profile: str | None = None) -> str:
         name:    App name (e.g. "chrome", "notepad", "Antigravity IDE")
         profile: Optional browser profile name for Chrome/Edge
                  (e.g. "Layek", "Rasel"). If omitted, uses last-used profile.
+        new_window: If True, skips checking if the app is already open and forces a new instance.
 
     Resolution order:
       1. Exact alias match (OPEN_ALIASES dict)
       2. Fuzzy alias match (rapidfuzz against OPEN_ALIASES keys, threshold 65%)
       3. Fuzzy Start Menu shortcut match (rapidfuzz against .lnk stems, threshold 65%)
       4. Direct execution attempt (pass name as-is to the 'start' command)
-
-    Browser special handling:
-      Chrome and Edge are launched with --profile-directory to skip the profile
-      picker. The last-used profile is selected automatically unless `profile`
-      is specified.
     """
     name_lower = name.lower().strip()
+
+    # Check if it's already running (only if new_window is False)
+    if not new_window:
+        executable_to_check = CLOSE_ALIASES.get(name_lower, name_lower)
+        if not executable_to_check.endswith(".exe"):
+            executable_to_check += ".exe"
+            
+        is_running = False
+        for proc in psutil.process_iter(['name']):
+            try:
+                if proc.info['name'] and proc.info['name'].lower() == executable_to_check:
+                    is_running = True
+                    break
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+                
+        if is_running:
+            return f"Boss, {name.title()} is already open. (If you want another window, please say 'open a new {name} window')."
 
     # 1. Exact alias match
     executable = OPEN_ALIASES.get(name_lower)
@@ -425,7 +430,16 @@ def switch_app(name: str) -> str:
         if win.isMinimized:
             win.restore()
             
-        win.activate()
+        try:
+            import ctypes
+            # Workaround for Windows focus stealing prevention
+            ctypes.windll.user32.keybd_event(0x12, 0, 0, 0) # ALT down
+            ctypes.windll.user32.keybd_event(0x12, 0, 2, 0) # ALT up
+            win.activate()
+        except Exception as act_e:
+            if "Error code from Windows: 0" not in str(act_e):
+                raise act_e
+            
         logger.success(f"Switched focus to window: {win.title}")
         return f"Switched focus to {name}."
     except Exception as e:
