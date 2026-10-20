@@ -114,6 +114,15 @@ from backend.tools.vision.vision_tools import describe_screen, click_element_on_
 TOOL_MAP["describe_screen"] = describe_screen
 TOOL_MAP["click_element_on_screen"] = click_element_on_screen
 
+# Phase 8.5 - Dev Environment Automation tools
+from backend.tools.automation.terminal import run_terminal_command
+from backend.tools.automation.web_verify import verify_url
+from backend.tools.automation.project_tools import open_project
+
+TOOL_MAP["run_terminal_command"] = run_terminal_command
+TOOL_MAP["verify_url"] = verify_url
+TOOL_MAP["open_project"] = open_project
+
 # Tools that should execute silently in the background without voice narration
 SILENT_TOOLS = {
     "remember",
@@ -248,8 +257,9 @@ class AIBrain:
         self._session_id: str = str(uuid.uuid4())
 
         # How many raw turns (user+assistant each count as 1) to keep in the
-        # LLM context window.  20 = ~10 back-and-forth exchanges.
-        self._window_size: int = 20
+        # LLM context window.  10 = ~5 back-and-forth exchanges — enough context,
+        # faster to assemble and cheaper to send (was 20).
+        self._window_size: int = 10
 
         # When total raw turns in DB exceed this number, compress the older
         # half into a summary to avoid unbounded DB growth.
@@ -259,14 +269,25 @@ class AIBrain:
         self.agentic_planner = AgenticPlanner()
 
     async def _call_llm(self, model: str, messages: list) -> dict:
-        """Helper to call OpenAI with a specific model and return the response."""
+        """
+        Main LLM call for intent processing and tool execution.
+
+        NOTE on reasoning_effort="none":
+        gpt-5.6-luna and gpt-5.6-terra REQUIRE reasoning_effort="none" when
+        using function/tool calling via /v1/chat/completions.
+        Without it the API returns HTTP 400:
+          "Function tools with reasoning_effort are not supported for
+           gpt-5.6-luna in /v1/chat/completions. To use function tools,
+           use /v1/responses or set reasoning_effort to 'none'."
+        max_completion_tokens raised 300 → 1024 to stop responses being cut off.
+        """
         response = await self.client.chat.completions.create(
             model=model,
             messages=messages,
             tools=TOOLS_SCHEMA,
             tool_choice="auto",
-            max_completion_tokens=300,
-            extra_body={"reasoning_effort": "none"}
+            max_completion_tokens=1024,
+            extra_body={"reasoning_effort": "none"},
         )
         return response
 
@@ -318,7 +339,6 @@ class AIBrain:
                 model=self.default_model,
                 messages=summarise_prompt,
                 max_completion_tokens=150,
-                extra_body={"reasoning_effort": "none"},
             )
             summary_text = resp.choices[0].message.content.strip()
             # covers_up_to_id is the DB id of the last row we compressed

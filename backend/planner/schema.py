@@ -635,4 +635,75 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
             },
         }
     },
+
+    # ── Dev Environment Automation Tools ────────────────────────────────────────
+
+    {
+        "type": "function",
+        "function": {
+            "name": "run_terminal_command",
+            "description": "Runs a command as a background subprocess in the given directory. Use this to start dev servers. Returns a JSON string with the status, process ID, and detected port.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The exact shell command to run (e.g., 'pnpm install && pnpm dev')."
+                    },
+                    "cwd": {
+                        "type": "string",
+                        "description": "The absolute path of the directory where the command should be run."
+                    },
+                    "ready_pattern": {
+                        "type": "string",
+                        "description": "Optional regex pattern to wait for in the stdout/stderr before returning success (e.g. 'Ready in', 'compiled successfully'). If none, returns immediately."
+                    },
+                    "timeout_seconds": {
+                        "type": "integer",
+                        "description": "Max time to wait for ready_pattern in seconds. Default is 90."
+                    }
+                },
+                "required": ["command", "cwd"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "verify_url",
+            "description": "Verifies that a given URL is reachable and returns a valid HTTP response (status 200). Retries internally.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to verify, e.g. 'http://localhost:5173'."
+                    }
+                },
+                "required": ["url"],
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_project",
+            "description": "Opens a project folder in the specified IDE/editor.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "The absolute path to the project directory."
+                    },
+                    "editor": {
+                        "type": "string",
+                        "enum": ["code", "antigravity"],
+                        "description": "The editor to use. Defaults to 'antigravity'."
+                    }
+                },
+                "required": ["path"],
+            },
+        }
+    }
 ]

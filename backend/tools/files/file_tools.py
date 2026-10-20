@@ -112,6 +112,7 @@ def search_file(
     location: Optional[str] = None,   # alias for search_in (LLM sometimes uses this name)
     max_results: int = 10,
     fuzzy_threshold: int = 70,
+    **kwargs
 ) -> str:
     """
     Searches for files and folders matching a name pattern.

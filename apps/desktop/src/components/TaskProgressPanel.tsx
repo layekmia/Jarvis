@@ -88,7 +88,12 @@ export function TaskProgressPanel() {
           {/* Header */}
           <div className="task-progress-header">
             <div className="task-progress-title">
-              {activeTask.done ? '✅ Task Complete' : '⚡ Task in Progress'}
+              {activeTask.phase === 'failed' ? '❌ Task Failed' :
+               activeTask.phase === 'complete' ? '✅ Task Complete' :
+               activeTask.phase === 'planning' ? '🧠 Planning...' :
+               activeTask.phase === 'verifying' ? '👁 Verifying...' :
+               activeTask.phase === 'executing' ? '⚙ Executing...' :
+               activeTask.done ? '✅ Task Complete' : '⚡ Task in Progress'}
             </div>
             <div className="task-progress-counter">
               {activeTask.done

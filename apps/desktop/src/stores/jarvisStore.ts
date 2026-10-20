@@ -49,6 +49,7 @@ export interface ActiveTask {
   current: number;
   completed: number;
   done: boolean;
+  phase?: 'planning' | 'executing' | 'verifying' | 'complete' | 'failed';
   steps: TaskStep[];
 }
 
